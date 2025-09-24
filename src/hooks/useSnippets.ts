@@ -17,109 +17,70 @@ export function useSnippets() {
     fetchSnippets(currentPage, searchQuery, selectedArtifactType);
   }, [currentPage, searchQuery, selectedArtifactType]);
 
-  const fetchSnippets = async (page = 1, query = '', artifactType = '') => {
-    setLoading(true);
-    
-    try {
-      if (!hasValidSupabaseCredentials || !supabase) {
-        console.log('Using mock data - Supabase not configured');
-        const mockData = getMockSnippets();
-        const filtered = filterMockData(mockData, query, artifactType);
-        const paginated = paginateData(filtered, page);
-        setSnippets(paginated);
-        setTotalCount(filtered.length);
-        return;
-      }
+  const mapDatabaseToSnippet = (data: any[], artifactType: string): Snippet[] => {
+    return data.map((item: any) => ({
+      id: String(item.id),
+      name: item.title || '',
+      description: item.description || '',
+      script: item.code || '',
+      artifact_type: artifactType,
+      collection: item.collection || item.table_name || '',
+      condition: item.condition || '',
+      when: item.when_to_run || item.script_type || '',
+      order: item.order_value || 100,
+      priority: item.priority || 100,
+      active: item.active !== false,
+      advanced: item.advanced || false,
+      field_name: item.field_name || '',
+      global: item.global || false,
+      isolate_script: item.isolate_script !== false,
+      applies_extended: item.applies_extended || false,
+      messages: item.messages || '',
+      order_value: item.order_value || 100,
+      view: item.view || '',
+      ui_type_code: item.ui_type_code || 10,
+      // Script Include specific fields
+      api_name: item.api_name || '',
+      client_callable: item.client_callable || false,
+      access_level: item.access_level || 'package_private',
+      caller_access: item.caller_access || '',
+      mobile_callable: item.mobile_callable || false,
+      sandbox_callable: item.sandbox_callable || false,
+      sys_policy: item.sys_policy || '',
+      // Service Portal Widget specific fields
+      html: item.html || '',
+      css: item.css || '',
+      client_script: item.client_script || '',
+      server_script: item.server_script || '',
+      controller_as: item.controller_as || '',
+      link: item.link || '',
+      demo_data: item.demo_data || null,
+      option_schema: item.option_schema || null,
+      repo_path: item.repo_path || '',
+      tags: item.tags || [],
+      created_by: 'User',
+      created_at: item.created_at,
+      updated_at: item.updated_at || item.created_at,
+      sys_id: String(item.id),
+      user_id: item.author_id
+    }));
+  };
 
-      console.log(`Fetching snippets - Page: ${page}, Query: ${query}, Type: ${artifactType}`);
-      
-      // Handle "My Snippets" filter
-      if (artifactType === 'my_snippets') {
-        await fetchMySnippets(page, query);
-        return;
-      }
-      
-      // Fetch from all artifact tables
-      const allSnippets: Snippet[] = [];
-      let totalItems = 0;
-      
-      for (const artifactType of ARTIFACT_TYPES) {
-        try {
-      // Build query
-      let queryBuilder = supabase
-        .from(artifactType.table)
-        .select('*', { count: 'exact' });
+  const filterMockData = (data: Snippet[], query: string, artifactType: string) => {
+    return data.filter(snippet => {
+      const matchesSearch = !query || 
+        snippet.name.toLowerCase().includes(query.toLowerCase()) ||
+        snippet.description.toLowerCase().includes(query.toLowerCase()) ||
+        snippet.script.toLowerCase().includes(query.toLowerCase());
+      const matchesType = !artifactType || artifactType === 'my_snippets' || snippet.artifact_type === artifactType;
+      return matchesSearch && matchesType;
+    });
+  };
 
-      if (artifactType.table !== 'mail_scripts' && artifactType.table !== 'inbound_actions') {
-        queryBuilder = queryBuilder.eq('is_public', true);
-      }
-
-      // Apply search filter if provided
-      if (query.trim()) {
-        queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
-      }
-
-          // Apply artifact type filter if provided
-          if (artifactType && selectedArtifactType === artifactType.value) {
-            // Only fetch from this specific table
-            const { data, error, count } = await queryBuilder
-              .order('created_at', { ascending: false })
-              .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
-
-            if (error) {
-              console.error(`Error fetching ${artifactType.table}:`, error);
-              continue;
-            }
-
-            totalItems = count || 0;
-            const mappedData = mapDatabaseToSnippet(data || [], artifactType.value);
-            allSnippets.push(...mappedData);
-            break; // Only fetch from one table when filtering by type
-          } else if (!selectedArtifactType) {
-            // Fetch from all tables when no type filter
-            const { data, error, count } = await queryBuilder
-              .order('created_at', { ascending: false });
-
-            if (error) {
-              console.error(`Error fetching ${artifactType.table}:`, error);
-              continue;
-            }
-
-            totalItems += count || 0;
-            const mappedData = mapDatabaseToSnippet(data || [], artifactType.value);
-            allSnippets.push(...mappedData);
-          }
-        } catch (err) {
-          console.warn(`Error fetching ${artifactType.table}:`, err);
-        }
-      }
-      
-      // Sort by created_at descending
-      allSnippets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      // Apply pagination if fetching from all tables
-      if (!selectedArtifactType) {
-        setTotalCount(allSnippets.length);
-        const startIndex = (page - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        setSnippets(allSnippets.slice(startIndex, endIndex));
-      } else {
-        setTotalCount(totalItems);
-        setSnippets(allSnippets);
-      }
-      
-      console.log('Successfully fetched snippets:', allSnippets.length, 'Total:', totalItems);
-      
-    } catch (error) {
-      console.warn('Error fetching snippets, using mock data:', error);
-      const mockData = getMockSnippets();
-      const filtered = filterMockData(mockData, query, artifactType);
-      const paginated = paginateData(filtered, page);
-      setSnippets(paginated);
-      setTotalCount(filtered.length);
-    } finally {
-      setLoading(false);
-    }
+  const paginateData = (data: Snippet[], page: number) => {
+    const startIndex = (page - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return data.slice(startIndex, endIndex);
   };
 
   const fetchMySnippets = async (page = 1, query = '') => {
@@ -190,95 +151,108 @@ export function useSnippets() {
     }
   };
 
-  const mapDatabaseToSnippet = (data: any[], artifactType: string): Snippet[] => {
-  return data.map((item: any) => ({
-    id: String(item.id),
-    name: item.title || '',
-    description: item.description || '',
-    script: item.code || '',
-    artifact_type: artifactType,
-    collection: item.collection || item.table_name || '',
-      condition: item.condition || '',
-      when: item.when_to_run || item.script_type || '',
-      order: item.order_value || 100,
-      priority: item.priority || 100,
-      active: item.active !== false,
-      advanced: item.advanced || false,
-      field_name: item.field_name || '',
-      global: item.global || false,
-      isolate_script: item.isolate_script !== false,
-      applies_extended: item.applies_extended || false,
-      messages: item.messages || '',
-      order_value: item.order_value || 100,
-      view: item.view || '',
-      ui_type_code: item.ui_type_code || 10,
-      // Script Include specific fields
-      api_name: item.api_name || '',
-      client_callable: item.client_callable || false,
-      access_level: item.access_level || 'package_private',
-      caller_access: item.caller_access || '',
-      mobile_callable: item.mobile_callable || false,
-      sandbox_callable: item.sandbox_callable || false,
-      sys_policy: item.sys_policy || '',
-      // Service Portal Widget specific fields
-      html: item.html || '',
-      css: item.css || '',
-      client_script: item.client_script || '',
-      server_script: item.server_script || '',
-      controller_as: item.controller_as || '',
-      link: item.link || '',
-      demo_data: item.demo_data || null,
-      option_schema: item.option_schema || null,
-    repo_path: item.repo_path || '',
-    tags: item.tags || [],
-    created_by: 'User',
-    created_at: item.created_at,
-    updated_at: item.updated_at || item.created_at,
-    sys_id: String(item.id),
-    user_id: item.author_id
-  }));
-  };
-
-  const filterMockData = (data: Snippet[], query: string, artifactType: string) => {
-    return data.filter(snippet => {
-      const matchesSearch = !query || 
-        snippet.name.toLowerCase().includes(query.toLowerCase()) ||
-        snippet.description.toLowerCase().includes(query.toLowerCase()) ||
-        snippet.script.toLowerCase().includes(query.toLowerCase());
-      const matchesType = !artifactType || artifactType === 'my_snippets' || snippet.artifact_type === artifactType;
-      return matchesSearch && matchesType;
-    });
-  };
-
-  const paginateData = (data: Snippet[], page: number) => {
-    const startIndex = (page - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return data.slice(startIndex, endIndex);
-  };
-
-  const createSnippet = async (data: CreateSnippetData, userId: string) => {
-    if (!hasValidSupabaseCredentials || !supabase) {
-      return { status: 'error' as const, message: 'Database not configured' };
-    }
-
+  const fetchSnippets = async (page = 1, query = '', artifactType = '') => {
+    setLoading(true);
+    
     try {
-      // Check for duplicates first
-      const isDuplicate = await checkForDuplicate(data);
-      if (isDuplicate) {
-        return { status: 'duplicate' as const, message: `Snippet "${data.name}" already exists` };
+      if (!hasValidSupabaseCredentials || !supabase) {
+        console.log('Using mock data - Supabase not configured');
+        const mockData = getMockSnippets();
+        const filtered = filterMockData(mockData, query, artifactType);
+        const paginated = paginateData(filtered, page);
+        setSnippets(paginated);
+        setTotalCount(filtered.length);
+        return;
       }
 
-      const insertedData = await insertSnippet(data, userId);
+      console.log(`Fetching snippets - Page: ${page}, Query: ${query}, Type: ${artifactType}`);
       
-      console.log('Snippet created successfully');
-      // Reset to first page and refresh
-      setCurrentPage(1);
-      await fetchSnippets(1, searchQuery, selectedArtifactType);
+      // Handle "My Snippets" filter
+      if (artifactType === 'my_snippets') {
+        await fetchMySnippets(page, query);
+        return;
+      }
       
-      return { status: 'created' as const, snippet: insertedData };
+      // Fetch from all artifact tables
+      const allSnippets: Snippet[] = [];
+      let totalItems = 0;
+      
+      for (const typeConfig of ARTIFACT_TYPES) {
+        try {
+          // Build query
+          let queryBuilder = supabase
+            .from(typeConfig.table)
+            .select('*', { count: 'exact' });
+
+          if (typeConfig.table !== 'mail_scripts' && typeConfig.table !== 'inbound_actions') {
+            queryBuilder = queryBuilder.eq('is_public', true);
+          }
+
+          // Apply search filter if provided
+          if (query.trim()) {
+            queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
+          }
+
+          // Apply artifact type filter if provided
+          if (artifactType === typeConfig.value) {
+            // Only fetch from this specific table
+            const { data, error, count } = await queryBuilder
+              .order('created_at', { ascending: false })
+              .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
+
+            if (error) {
+              console.error(`Error fetching ${typeConfig.table}:`, error);
+              continue;
+            }
+
+            totalItems = count || 0;
+            const mappedData = mapDatabaseToSnippet(data || [], typeConfig.value);
+            allSnippets.push(...mappedData);
+            break; // Only fetch from one table when filtering by type
+          } else if (!artifactType) {
+            // Fetch from all tables when no type filter
+            const { data, error, count } = await queryBuilder
+              .order('created_at', { ascending: false });
+
+            if (error) {
+              console.error(`Error fetching ${typeConfig.table}:`, error);
+              continue;
+            }
+
+            totalItems += count || 0;
+            const mappedData = mapDatabaseToSnippet(data || [], typeConfig.value);
+            allSnippets.push(...mappedData);
+          }
+        } catch (err) {
+          console.warn(`Error fetching ${typeConfig.table}:`, err);
+        }
+      }
+      
+      // Sort by created_at descending
+      allSnippets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      // Apply pagination if fetching from all tables
+      if (!artifactType) {
+        setTotalCount(allSnippets.length);
+        const startIndex = (page - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        setSnippets(allSnippets.slice(startIndex, endIndex));
+      } else {
+        setTotalCount(totalItems);
+        setSnippets(allSnippets);
+      }
+      
+      console.log('Successfully fetched snippets:', allSnippets.length, 'Total:', totalItems);
+      
     } catch (error) {
-      console.error('Error in createSnippet:', error);
-      return { status: 'error' as const, message: error instanceof Error ? error.message : 'Unknown error' };
+      console.warn('Error fetching snippets, using mock data:', error);
+      const mockData = getMockSnippets();
+      const filtered = filterMockData(mockData, query, artifactType);
+      const paginated = paginateData(filtered, page);
+      setSnippets(paginated);
+      setTotalCount(filtered.length);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -465,18 +439,30 @@ export function useSnippets() {
     }
   };
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    setCurrentPage(1); // Reset to first page when searching
-  };
+  const createSnippet = async (data: CreateSnippetData, userId: string) => {
+    if (!hasValidSupabaseCredentials || !supabase) {
+      return { status: 'error' as const, message: 'Database not configured' };
+    }
 
-  const handleArtifactTypeChange = (artifactType: string) => {
-    setSelectedArtifactType(artifactType);
-    setCurrentPage(1); // Reset to first page when filtering
-  };
+    try {
+      // Check for duplicates first
+      const isDuplicate = await checkForDuplicate(data);
+      if (isDuplicate) {
+        return { status: 'duplicate' as const, message: `Snippet "${data.name}" already exists` };
+      }
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+      const insertedData = await insertSnippet(data, userId);
+      
+      console.log('Snippet created successfully');
+      // Reset to first page and refresh
+      setCurrentPage(1);
+      await fetchSnippets(1, searchQuery, selectedArtifactType);
+      
+      return { status: 'created' as const, snippet: insertedData };
+    } catch (error) {
+      console.error('Error in createSnippet:', error);
+      return { status: 'error' as const, message: error instanceof Error ? error.message : 'Unknown error' };
+    }
   };
 
   const updateSnippet = async (snippetId: string, updates: Partial<Snippet>) => {
@@ -563,7 +549,6 @@ export function useSnippets() {
         case 'client_script':
         case 'ui_action':
           if (updates.script !== undefined) updateData.code = updates.script;
-          if (updates.script !== undefined) updateData.code = updates.script;
           if (updates.collection !== undefined) updateData.table_name = updates.collection;
           if (updates.condition !== undefined) updateData.condition = updates.condition;
           if (updates.tags !== undefined) updateData.tags = updates.tags;
@@ -616,6 +601,20 @@ export function useSnippets() {
     }
   };
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const handleArtifactTypeChange = (artifactType: string) => {
+    setSelectedArtifactType(artifactType);
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   return {
@@ -656,140 +655,141 @@ export function useSnippets() {
   };
 }
 
-  // Mock data for demo purposes
-  function getMockSnippets(): Snippet[] {
-    return [
-      {
-        id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-        name: 'Set Manager from Department Head',
-        description: 'Finds the department of the user and sets the head to become the manager of the user. Works on insert and update.',
-        script: `(function executeRule(current, previous /*null when async*/) {
-    var departmentSysId = current.department;
-    if (gs.nil(departmentSysId)) {
-        gs.log("BR 'Set User Manager from Department': Department is empty for user " + current.user_name + ". Skipping.", "User Manager Automation");
-        return;
-    }
+// Mock data for demo purposes
+function getMockSnippets(): Snippet[] {
+  return [
+    {
+      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      name: 'Set Manager from Department Head',
+      description: 'Finds the department of the user and sets the head to become the manager of the user. Works on insert and update.',
+      script: `(function executeRule(current, previous /*null when async*/) {
+  var departmentSysId = current.department;
+  if (gs.nil(departmentSysId)) {
+      gs.log("BR 'Set User Manager from Department': Department is empty for user " + current.user_name + ". Skipping.", "User Manager Automation");
+      return;
+  }
 
-    var deptGR = new GlideRecord('cmn_department');
-    if (deptGR.get(departmentSysId)) {
-        // Get the department's manager (dept_head)
-        var departmentManagerSysId = deptGR.dept_head;
-        if (!gs.nil(departmentManagerSysId)) {
-            if (current.manager != departmentManagerSysId) {
-                current.manager = departmentManagerSysId;
-                gs.info("BR 'Set User Manager from Department': Set manager for user '" + current.user_name + "' to '" + deptGR.dept_head.getDisplayValue() + "' from department '" + deptGR.name + "'.", "User Manager Automation");
-            }
-        } else {
-            gs.info("BR 'Set User Manager from Department': Department '" + deptGR.name + "' has no manager (dept_head). User '" + current.user_name + "' manager not set by this rule.", "User Manager Automation");
-        }
-    } else {
-        gs.warn("BR 'Set User Manager from Department': Department with sys_id '" + departmentSysId + "' not found for user '" + current.user_name + "'.", "User Manager Automation");
-    }
+  var deptGR = new GlideRecord('cmn_department');
+  if (deptGR.get(departmentSysId)) {
+      // Get the department's manager (dept_head)
+      var departmentManagerSysId = deptGR.dept_head;
+      if (!gs.nil(departmentManagerSysId)) {
+          if (current.manager != departmentManagerSysId) {
+              current.manager = departmentManagerSysId;
+              gs.info("BR 'Set User Manager from Department': Set manager for user '" + current.user_name + "' to '" + deptGR.dept_head.getDisplayValue() + "' from department '" + deptGR.name + "'.", "User Manager Automation");
+          }
+      } else {
+          gs.info("BR 'Set User Manager from Department': Department '" + deptGR.name + "' has no manager (dept_head). User '" + current.user_name + "' manager not set by this rule.", "User Manager Automation");
+      }
+  } else {
+      gs.warn("BR 'Set User Manager from Department': Department with sys_id '" + departmentSysId + "' not found for user '" + current.user_name + "'.", "User Manager Automation");
+  }
 })(current, previous);`,
-        artifact_type: 'business_rule',
-        collection: 'sys_user',
-        condition: 'departmentVALCHANGES^departmentISNOTEMPTY^EQ',
-        when: 'before',
-        order: 100,
-        priority: 100,
-        active: true,
-        advanced: true,
-        tags: ['user management', 'department', 'manager', 'automation'],
-        created_by: 'admin',
-        created_at: '2024-01-15T10:30:00Z',
-        updated_at: '2024-01-15T10:30:00Z',
-        sys_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
-      },
-      {
-        id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012',
-        name: 'Auto-assign Incident to Group',
-        description: 'Automatically assigns incidents to the appropriate group based on category and subcategory.',
-        script: `(function executeRule(current, previous /*null when async*/) {
-    // Auto-assignment logic based on category
-    if (current.category == 'hardware') {
-        if (current.subcategory == 'computer') {
-            current.assignment_group = getGroupSysId('Desktop Support');
-        } else if (current.subcategory == 'monitor') {
-            current.assignment_group = getGroupSysId('Hardware Team');
-        }
-    } else if (current.category == 'software') {
-        current.assignment_group = getGroupSysId('Application Support');
-    }
+      artifact_type: 'business_rule',
+      collection: 'sys_user',
+      condition: 'departmentVALCHANGES^departmentISNOTEMPTY^EQ',
+      when: 'before',
+      order: 100,
+      priority: 100,
+      active: true,
+      advanced: true,
+      tags: ['user management', 'department', 'manager', 'automation'],
+      created_by: 'admin',
+      created_at: '2024-01-15T10:30:00Z',
+      updated_at: '2024-01-15T10:30:00Z',
+      sys_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+    },
+    {
+      id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012',
+      name: 'Auto-assign Incident to Group',
+      description: 'Automatically assigns incidents to the appropriate group based on category and subcategory.',
+      script: `(function executeRule(current, previous /*null when async*/) {
+  // Auto-assignment logic based on category
+  if (current.category == 'hardware') {
+      if (current.subcategory == 'computer') {
+          current.assignment_group = getGroupSysId('Desktop Support');
+      } else if (current.subcategory == 'monitor') {
+          current.assignment_group = getGroupSysId('Hardware Team');
+      }
+  } else if (current.category == 'software') {
+      current.assignment_group = getGroupSysId('Application Support');
+  }
 
-    function getGroupSysId(groupName) {
-        var gr = new GlideRecord('sys_user_group');
-        if (gr.get('name', groupName)) {
-            return gr.sys_id;
-        }
-        return '';
-    }
+  function getGroupSysId(groupName) {
+      var gr = new GlideRecord('sys_user_group');
+      if (gr.get('name', groupName)) {
+          return gr.sys_id;
+      }
+      return '';
+  }
 })(current, previous);`,
-        artifact_type: 'business_rule',
-        collection: 'incident',
-        condition: 'category.changes()^ORsubcategory.changes()',
-        when: 'before',
-        order: 200,
-        priority: 100,
-        active: true,
-        advanced: false,
-        tags: ['incident', 'assignment', 'automation', 'category'],
-        created_by: 'system.admin',
-        created_at: '2024-01-10T14:20:00Z',
-        updated_at: '2024-01-10T14:20:00Z',
-        sys_id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012'
-      },
-      {
-        id: 'c3d4e5f6-g7h8-9012-cdef-345678901234',
-        name: 'Validate Email Format',
-        description: 'Client-side validation to ensure email addresses follow the correct format before submission.',
-        script: `function onSubmit() {
-    var email = g_form.getValue('email');
-    if (email) {
-        var emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
-        if (!emailRegex.test(email)) {
-            g_form.addErrorMessage('Please enter a valid email address');
-            return false;
-        }
-    }
-    return true;
+      artifact_type: 'business_rule',
+      collection: 'incident',
+      condition: 'category.changes()^ORsubcategory.changes()',
+      when: 'before',
+      order: 200,
+      priority: 100,
+      active: true,
+      advanced: false,
+      tags: ['incident', 'assignment', 'automation', 'category'],
+      created_by: 'system.admin',
+      created_at: '2024-01-10T14:20:00Z',
+      updated_at: '2024-01-10T14:20:00Z',
+      sys_id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012'
+    },
+    {
+      id: 'c3d4e5f6-g7h8-9012-cdef-345678901234',
+      name: 'Validate Email Format',
+      description: 'Client-side validation to ensure email addresses follow the correct format before submission.',
+      script: `function onSubmit() {
+  var email = g_form.getValue('email');
+  if (email) {
+      var emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+      if (!emailRegex.test(email)) {
+          g_form.addErrorMessage('Please enter a valid email address');
+          return false;
+      }
+  }
+  return true;
 }`,
-        artifact_type: 'client_script',
-        collection: 'sys_user',
-        condition: '',
-        when: 'onSubmit',
-        order: 100,
-        priority: 100,
-        active: true,
-        advanced: false,
-        tags: ['validation', 'email', 'client-side', 'form'],
-        created_by: 'developer',
-        created_at: '2024-01-08T09:15:00Z',
-        updated_at: '2024-01-08T09:15:00Z',
-        sys_id: 'c3d4e5f6-g7h8-9012-cdef-345678901234'
-      },
-      {
-        id: 'd4e5f6g7-h8i9-0123-defg-456789012345',
-        name: 'Email Notification Script',
-        description: 'Custom script for sending email notifications with dynamic content.',
-        script: `var email = new GlideRecord('sys_email');
+      artifact_type: 'client_script',
+      collection: 'sys_user',
+      condition: '',
+      when: 'onSubmit',
+      order: 100,
+      priority: 100,
+      active: true,
+      advanced: false,
+      tags: ['validation', 'email', 'client-side', 'form'],
+      created_by: 'developer',
+      created_at: '2024-01-08T09:15:00Z',
+      updated_at: '2024-01-08T09:15:00Z',
+      sys_id: 'c3d4e5f6-g7h8-9012-cdef-345678901234'
+    },
+    {
+      id: 'd4e5f6g7-h8i9-0123-defg-456789012345',
+      name: 'Email Notification Script',
+      description: 'Custom script for sending email notifications with dynamic content.',
+      script: `var email = new GlideRecord('sys_email');
 email.initialize();
 email.subject = 'Custom Notification';
 email.message = 'Hello, this is a custom email from the mail script.';
 email.recipients = current.email;
 email.insert();`,
-        artifact_type: 'mail_script',
-        repo_path: '/scripts/mail/email_notification.js',
-        tags: ['email', 'notification', 'custom'],
-        created_by: 'developer',
-        created_at: '2024-01-05T12:00:00Z',
-        updated_at: '2024-01-05T12:00:00Z',
-        sys_id: 'd4e5f6g7-h8i9-0123-defg-456789012345'
-      },
-      {
-        id: 'e5f6g7h8-i9j0-1234-efgh-567890123456',
-        name: 'Inbound Email Action',
-        description: 'Processes inbound emails and creates incidents based on content.',
-        script: `if (email.subject.indexOf('Urgent') > -1) {
+      artifact_type: 'mail_script',
+      repo_path: '/scripts/mail/email_notification.js',
+      active: true,
+      tags: ['email', 'notification', 'custom'],
+      created_by: 'developer',
+      created_at: '2024-01-05T12:00:00Z',
+      updated_at: '2024-01-05T12:00:00Z',
+      sys_id: 'd4e5f6g7-h8i9-0123-defg-456789012345'
+    },
+    {
+      id: 'e5f6g7h8-i9j0-1234-efgh-567890123456',
+      name: 'Inbound Email Action',
+      description: 'Processes inbound emails and creates incidents based on content.',
+      script: `if (email.subject.indexOf('Urgent') > -1) {
   var inc = new GlideRecord('incident');
   inc.initialize();
   inc.short_description = email.subject;
@@ -797,13 +797,14 @@ email.insert();`,
   inc.insert();
   email.reply('Incident created: ' + inc.number);
 }`,
-        artifact_type: 'inbound_action',
-        repo_path: '/scripts/inbound/inbound_incident.js',
-        tags: ['inbound', 'email', 'incident'],
-        created_by: 'admin',
-        created_at: '2024-01-03T15:30:00Z',
-        updated_at: '2024-01-03T15:30:00Z',
-        sys_id: 'e5f6g7h8-i9j0-1234-efgh-567890123456'
-      }
-    ];
-  }
+      artifact_type: 'inbound_action',
+      repo_path: '/scripts/inbound/inbound_incident.js',
+      active: true,
+      tags: ['inbound', 'email', 'incident'],
+      created_by: 'admin',
+      created_at: '2024-01-03T15:30:00Z',
+      updated_at: '2024-01-03T15:30:00Z',
+      sys_id: 'e5f6g7h8-i9j0-1234-efgh-567890123456'
+    }
+  ];
+}
