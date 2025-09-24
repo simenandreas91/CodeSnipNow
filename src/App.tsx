@@ -28,8 +28,7 @@ function App() {
     handleArtifactTypeChange,
     handlePageChange,
     createSnippet,
-    updateSnippet,
-    createMultipleSnippets
+    updateSnippet
   } = useSnippets();
 
   return (
