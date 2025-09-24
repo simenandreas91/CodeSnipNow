@@ -14,9 +14,7 @@ export function Header({ user, onSignIn, onSignOut, onCreateSnippet }: HeaderPro
     <header className="border-b border-white/10 backdrop-blur-sm bg-white/5">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600">
-            <Code className="h-6 w-6 text-white" />
-          </div>
+          <img src="/logo.png" alt="CodeSnipNow Logo" className="h-12 w-12" />
           <span className="text-xl font-semibold text-white">CodeSnipNow</span>
         </div>
 
@@ -32,7 +30,7 @@ export function Header({ user, onSignIn, onSignOut, onCreateSnippet }: HeaderPro
               </button>
               <div className="flex items-center gap-2 text-slate-300">
                 <User className="h-4 w-4" />
-                <span>{user.username}</span>
+                <span>{user.name}</span>
               </div>
               <button
                 onClick={onSignOut}

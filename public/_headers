@@ -1,0 +1,5 @@
+/favicon.*
+  Cache-Control: no-cache
+
+/image.png
+  Cache-Control: no-cache
