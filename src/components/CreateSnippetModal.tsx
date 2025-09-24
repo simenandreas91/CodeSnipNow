@@ -66,7 +66,9 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
                     xmlDoc.querySelector('sys_script_include') || 
                     xmlDoc.querySelector('sys_ui_action') ||
                     xmlDoc.querySelector('sys_script_client') ||
-                    xmlDoc.querySelector('sys_widget');
+                    xmlDoc.querySelector('sys_widget') ||
+                    xmlDoc.querySelector('sp_widget') ||
+                    xmlDoc.querySelector('sys_script_email');
 
       if (element) {
         const extractValue = (tagName: string) => {
@@ -92,14 +94,32 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
         };
 
         if (artifactType === 'service_portal_widget') {
+          const optionSchemaStr = extractValue('option_schema').trim();
+          const demoDataStr = extractValue('demo_data').trim();
+          let optionSchema = {};
+          let demoData = {};
+          try {
+            if (optionSchemaStr) {
+              optionSchema = JSON.parse(optionSchemaStr);
+            }
+          } catch (err) {
+            console.warn('Failed to parse option_schema:', err);
+          }
+          try {
+            if (demoDataStr) {
+              demoData = JSON.parse(demoDataStr);
+            }
+          } catch (err) {
+            console.warn('Failed to parse demo_data:', err);
+          }
           setFormData({
             ...baseData,
-            html: extractValue('html'),
+            html: extractValue('template'),
             css: extractValue('css'),
-            server_script: extractValue('server_script'),
+            server_script: extractValue('script'),
             client_script: extractValue('client_script'),
-            option_schema: extractValue('option_schema') ? JSON.parse(extractValue('option_schema')) : {},
-            demo_data: extractValue('demo_data') ? JSON.parse(extractValue('demo_data')) : {},
+            option_schema: optionSchema,
+            demo_data: demoData,
           });
         } else {
           setFormData({
@@ -134,6 +154,8 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
       'sys_script_include': 'script_include',
       'sys_ui_action': 'ui_action',
       'sys_widget': 'service_portal_widget',
+      'sp_widget': 'service_portal_widget',
+      'sys_script_email': 'mail_script',
     };
     return tagMap[tagName] || 'other';
   };
