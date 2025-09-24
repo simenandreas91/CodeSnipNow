@@ -6,7 +6,6 @@ import { SnippetModal } from './components/SnippetModal';
 import { Pagination } from './components/Pagination';
 import { AuthModal } from './components/AuthModal';
 import { CreateSnippetModal } from './components/CreateSnippetModal';
-import { GitHubImportModal } from './components/GitHubImportModal';
 import { useAuth } from './hooks/useAuth';
 import { useSnippets } from './hooks/useSnippets';
 import type { Snippet } from './types/snippet';
@@ -34,8 +33,8 @@ function App() {
   } = useSnippets();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-slate-900 to-blue-900">
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KPGcgZmlsbD0iIzllYTNiYSIgZmlsbC1vcGFjaXR5PSIwLjAzIj4KPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPgo8L2c+CjwvZz4KPC9zdmc+')] opacity-40"></div>
+    <div className="min-h-screen bg-gradient-to-br from-black via-blue-950 to-purple-950">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KPGcgZmlsbD0iIzllYTNiYSIgZmlsbC1vcGFjaXR5PSIwLjAzIj4KPGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPgo8L2c+CjwvZz4KPC9zdmc+')] opacity-20"></div>
       
       <div className="relative z-10">
         <Header 
@@ -115,7 +114,9 @@ function App() {
         {showCreateModal && user && (
           <CreateSnippetModal
             onClose={() => setShowCreateModal(false)}
-            onCreateSnippet={(data, userId) => createSnippet(data, userId)}
+            onCreateSnippet={async (data, userId) => {
+              await createSnippet(data, userId);
+            }}
             user={user}
           />
         )}
