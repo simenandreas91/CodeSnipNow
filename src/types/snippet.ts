@@ -278,7 +278,7 @@ export interface CreateSnippetData {
 }
 
 // Artifact type definitions
-export type ArtifactType = 'business_rule' | 'client_script' | 'script_include' | 'ui_action' | 'scheduled_job' | 'transform_map' | 'background_script' | 'catalog_client_script' | 'service_portal_widget';
+export type ArtifactType = 'business_rule' | 'client_script' | 'script_include' | 'ui_action' | 'scheduled_job' | 'transform_map' | 'background_script' | 'catalog_client_script' | 'service_portal_widget' | 'mail_script' | 'inbound_action';
 
 export const ARTIFACT_TYPES: { value: ArtifactType; label: string; table: string }[] = [
   { value: 'business_rule', label: 'Business Rules', table: 'business_rules' },
@@ -290,4 +290,6 @@ export const ARTIFACT_TYPES: { value: ArtifactType; label: string; table: string
   { value: 'background_script', label: 'Background Scripts', table: 'background_scripts' },
   { value: 'catalog_client_script', label: 'Catalog Client Scripts', table: 'catalog_client_scripts' },
   { value: 'service_portal_widget', label: 'Service Portal Widgets', table: 'service_portal_widgets' },
+  { value: 'mail_script', label: 'Mail Scripts', table: 'mail_scripts' },
+  { value: 'inbound_action', label: 'Inbound Actions', table: 'inbound_actions' },
 ];

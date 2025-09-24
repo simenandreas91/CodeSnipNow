@@ -15,6 +15,9 @@ const ARTIFACT_TYPE_COLORS = {
   scheduled_job: 'from-slate-600 to-slate-700',
   transform_map: 'from-blue-500 to-teal-600',
   background_script: 'from-indigo-500 to-indigo-600',
+  inbound_action: 'from-orange-500 to-orange-600',
+  mail_script: 'from-green-500 to-green-600',
+  service_portal_widget: 'from-pink-500 to-pink-600',
   other: 'from-slate-500 to-slate-600',
 };
 
@@ -26,6 +29,9 @@ const ARTIFACT_TYPE_LABELS = {
   scheduled_job: 'Scheduled Job',
   transform_map: 'Transform Map',
   background_script: 'Background Script',
+  inbound_action: 'Inbound Action',
+  mail_script: 'Mail Script',
+  service_portal_widget: 'Service Portal Widget',
   other: 'Other',
 };
 

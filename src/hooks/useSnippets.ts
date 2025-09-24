@@ -45,16 +45,19 @@ export function useSnippets() {
       
       for (const artifactType of ARTIFACT_TYPES) {
         try {
-          // Build query
-          let queryBuilder = supabase
-            .from(artifactType.table)
-            .select('*', { count: 'exact' })
-            .eq('is_public', true);
+      // Build query
+      let queryBuilder = supabase
+        .from(artifactType.table)
+        .select('*', { count: 'exact' });
 
-          // Apply search filter if provided
-          if (query.trim()) {
-            queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
-          }
+      if (artifactType.table !== 'mail_scripts' && artifactType.table !== 'inbound_actions') {
+        queryBuilder = queryBuilder.eq('is_public', true);
+      }
+
+      // Apply search filter if provided
+      if (query.trim()) {
+        queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
+      }
 
           // Apply artifact type filter if provided
           if (artifactType && selectedArtifactType === artifactType.value) {
@@ -188,13 +191,13 @@ export function useSnippets() {
   };
 
   const mapDatabaseToSnippet = (data: any[], artifactType: string): Snippet[] => {
-    return data.map((item: any) => ({
-      id: item.id,
-      name: item.title || '',
-      description: item.description || '',
-      script: item.code || '',
-      artifact_type: artifactType,
-      collection: item.collection || item.table_name || '',
+  return data.map((item: any) => ({
+    id: String(item.id),
+    name: item.title || '',
+    description: item.description || '',
+    script: item.code || '',
+    artifact_type: artifactType,
+    collection: item.collection || item.table_name || '',
       condition: item.condition || '',
       when: item.when_to_run || item.script_type || '',
       order: item.order_value || 100,
@@ -226,14 +229,14 @@ export function useSnippets() {
       link: item.link || '',
       demo_data: item.demo_data || null,
       option_schema: item.option_schema || null,
-      repo_path: item.repo_path || '',
-      tags: item.tags || [],
-      created_by: 'User',
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-      sys_id: item.id,
-      user_id: item.author_id
-    }));
+    repo_path: item.repo_path || '',
+    tags: item.tags || [],
+    created_by: 'User',
+    created_at: item.created_at,
+    updated_at: item.updated_at || item.created_at,
+    sys_id: String(item.id),
+    user_id: item.author_id
+  }));
   };
 
   const filterMockData = (data: Snippet[], query: string, artifactType: string) => {
@@ -343,7 +346,7 @@ export function useSnippets() {
         author_id: userId
       };
 
-      let specificData = {};
+      let specificData: Record<string, any> = {};
 
       switch (data.artifact_type) {
         case 'business_rule':
@@ -424,9 +427,26 @@ export function useSnippets() {
             // Background scripts are simple - no additional fields needed
           };
           break;
+        case 'mail_script':
+        case 'inbound_action':
+          specificData = {
+            repo_path: ''
+          };
+          break;
       }
 
-      const insertData = { ...baseData, ...specificData };
+      let insertData;
+      if (data.artifact_type === 'mail_script' || data.artifact_type === 'inbound_action') {
+        insertData = {
+          title: data.name,
+          description: data.description,
+          code: data.script,
+          author_id: userId,
+          repo_path: specificData.repo_path
+        };
+      } else {
+        insertData = { ...baseData, ...specificData };
+      }
 
       const { data: insertedData, error } = await supabase
         .from(artifactConfig.table)
@@ -636,14 +656,14 @@ export function useSnippets() {
   };
 }
 
-// Mock data for demo purposes
-function getMockSnippets(): Snippet[] {
-  return [
-    {
-      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-      name: 'Set Manager from Department Head',
-      description: 'Finds the department of the user and sets the head to become the manager of the user. Works on insert and update.',
-      script: `(function executeRule(current, previous /*null when async*/) {
+  // Mock data for demo purposes
+  function getMockSnippets(): Snippet[] {
+    return [
+      {
+        id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        name: 'Set Manager from Department Head',
+        description: 'Finds the department of the user and sets the head to become the manager of the user. Works on insert and update.',
+        script: `(function executeRule(current, previous /*null when async*/) {
     var departmentSysId = current.department;
     if (gs.nil(departmentSysId)) {
         gs.log("BR 'Set User Manager from Department': Department is empty for user " + current.user_name + ". Skipping.", "User Manager Automation");
@@ -666,25 +686,25 @@ function getMockSnippets(): Snippet[] {
         gs.warn("BR 'Set User Manager from Department': Department with sys_id '" + departmentSysId + "' not found for user '" + current.user_name + "'.", "User Manager Automation");
     }
 })(current, previous);`,
-      artifact_type: 'business_rule',
-      collection: 'sys_user',
-      condition: 'departmentVALCHANGES^departmentISNOTEMPTY^EQ',
-      when: 'before',
-      order: 100,
-      priority: 100,
-      active: true,
-      advanced: true,
-      tags: ['user management', 'department', 'manager', 'automation'],
-      created_by: 'admin',
-      created_at: '2024-01-15T10:30:00Z',
-      updated_at: '2024-01-15T10:30:00Z',
-      sys_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
-    },
-    {
-      id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012',
-      name: 'Auto-assign Incident to Group',
-      description: 'Automatically assigns incidents to the appropriate group based on category and subcategory.',
-      script: `(function executeRule(current, previous /*null when async*/) {
+        artifact_type: 'business_rule',
+        collection: 'sys_user',
+        condition: 'departmentVALCHANGES^departmentISNOTEMPTY^EQ',
+        when: 'before',
+        order: 100,
+        priority: 100,
+        active: true,
+        advanced: true,
+        tags: ['user management', 'department', 'manager', 'automation'],
+        created_by: 'admin',
+        created_at: '2024-01-15T10:30:00Z',
+        updated_at: '2024-01-15T10:30:00Z',
+        sys_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+      },
+      {
+        id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012',
+        name: 'Auto-assign Incident to Group',
+        description: 'Automatically assigns incidents to the appropriate group based on category and subcategory.',
+        script: `(function executeRule(current, previous /*null when async*/) {
     // Auto-assignment logic based on category
     if (current.category == 'hardware') {
         if (current.subcategory == 'computer') {
@@ -704,25 +724,25 @@ function getMockSnippets(): Snippet[] {
         return '';
     }
 })(current, previous);`,
-      artifact_type: 'business_rule',
-      collection: 'incident',
-      condition: 'category.changes()^ORsubcategory.changes()',
-      when: 'before',
-      order: 200,
-      priority: 100,
-      active: true,
-      advanced: false,
-      tags: ['incident', 'assignment', 'automation', 'category'],
-      created_by: 'system.admin',
-      created_at: '2024-01-10T14:20:00Z',
-      updated_at: '2024-01-10T14:20:00Z',
-      sys_id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012'
-    },
-    {
-      id: 'c3d4e5f6-g7h8-9012-cdef-345678901234',
-      name: 'Validate Email Format',
-      description: 'Client-side validation to ensure email addresses follow the correct format before submission.',
-      script: `function onSubmit() {
+        artifact_type: 'business_rule',
+        collection: 'incident',
+        condition: 'category.changes()^ORsubcategory.changes()',
+        when: 'before',
+        order: 200,
+        priority: 100,
+        active: true,
+        advanced: false,
+        tags: ['incident', 'assignment', 'automation', 'category'],
+        created_by: 'system.admin',
+        created_at: '2024-01-10T14:20:00Z',
+        updated_at: '2024-01-10T14:20:00Z',
+        sys_id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012'
+      },
+      {
+        id: 'c3d4e5f6-g7h8-9012-cdef-345678901234',
+        name: 'Validate Email Format',
+        description: 'Client-side validation to ensure email addresses follow the correct format before submission.',
+        script: `function onSubmit() {
     var email = g_form.getValue('email');
     if (email) {
         var emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
@@ -733,19 +753,57 @@ function getMockSnippets(): Snippet[] {
     }
     return true;
 }`,
-      artifact_type: 'client_script',
-      collection: 'sys_user',
-      condition: '',
-      when: 'onSubmit',
-      order: 100,
-      priority: 100,
-      active: true,
-      advanced: false,
-      tags: ['validation', 'email', 'client-side', 'form'],
-      created_by: 'developer',
-      created_at: '2024-01-08T09:15:00Z',
-      updated_at: '2024-01-08T09:15:00Z',
-      sys_id: 'c3d4e5f6-g7h8-9012-cdef-345678901234'
-    }
-  ];
-}
+        artifact_type: 'client_script',
+        collection: 'sys_user',
+        condition: '',
+        when: 'onSubmit',
+        order: 100,
+        priority: 100,
+        active: true,
+        advanced: false,
+        tags: ['validation', 'email', 'client-side', 'form'],
+        created_by: 'developer',
+        created_at: '2024-01-08T09:15:00Z',
+        updated_at: '2024-01-08T09:15:00Z',
+        sys_id: 'c3d4e5f6-g7h8-9012-cdef-345678901234'
+      },
+      {
+        id: 'd4e5f6g7-h8i9-0123-defg-456789012345',
+        name: 'Email Notification Script',
+        description: 'Custom script for sending email notifications with dynamic content.',
+        script: `var email = new GlideRecord('sys_email');
+email.initialize();
+email.subject = 'Custom Notification';
+email.message = 'Hello, this is a custom email from the mail script.';
+email.recipients = current.email;
+email.insert();`,
+        artifact_type: 'mail_script',
+        repo_path: '/scripts/mail/email_notification.js',
+        tags: ['email', 'notification', 'custom'],
+        created_by: 'developer',
+        created_at: '2024-01-05T12:00:00Z',
+        updated_at: '2024-01-05T12:00:00Z',
+        sys_id: 'd4e5f6g7-h8i9-0123-defg-456789012345'
+      },
+      {
+        id: 'e5f6g7h8-i9j0-1234-efgh-567890123456',
+        name: 'Inbound Email Action',
+        description: 'Processes inbound emails and creates incidents based on content.',
+        script: `if (email.subject.indexOf('Urgent') > -1) {
+  var inc = new GlideRecord('incident');
+  inc.initialize();
+  inc.short_description = email.subject;
+  inc.description = email.body_text;
+  inc.insert();
+  email.reply('Incident created: ' + inc.number);
+}`,
+        artifact_type: 'inbound_action',
+        repo_path: '/scripts/inbound/inbound_incident.js',
+        tags: ['inbound', 'email', 'incident'],
+        created_by: 'admin',
+        created_at: '2024-01-03T15:30:00Z',
+        updated_at: '2024-01-03T15:30:00Z',
+        sys_id: 'e5f6g7h8-i9j0-1234-efgh-567890123456'
+      }
+    ];
+  }
