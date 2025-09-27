@@ -56,60 +56,25 @@ export function useIntegrations() {
         return;
       }
 
-      // Fetch from integrations table
-      let integrationsQuery = supabase
+      let queryBuilder = supabase
         .from('integrations')
         .select('type');
 
       if (myIntegrations) {
-        integrationsQuery = integrationsQuery.eq('author_id', user?.id);
+        queryBuilder = queryBuilder.eq('author_id', user?.id);
       } else {
-        integrationsQuery = integrationsQuery.eq('is_public', true);
+        queryBuilder = queryBuilder.eq('is_public', true);
       }
 
-      const { data: integrationsData, error: integrationsError } = await integrationsQuery;
+      const { data, error } = await queryBuilder;
 
-      // Fetch from core_servicenow_apis table - check for any records regardless of is_public status
-      let apisQuery = supabase
-        .from('core_servicenow_apis')
-        .select('type, is_public');
-
-      if (myIntegrations) {
-        apisQuery = apisQuery.eq('author_id', user?.id);
+      if (error) {
+        console.error('Error fetching integration subtypes:', error);
+        setAvailableSubtypes([]);
       } else {
-        // For public view, include records where is_public is true OR null (default behavior)
-        apisQuery = apisQuery.or('is_public.eq.true,is_public.is.null');
+        const types = [...new Set((data || []).map((item: any) => item.type).filter(Boolean))].sort();
+        setAvailableSubtypes(types);
       }
-
-      const { data: apisData, error: apisError } = await apisQuery;
-
-      if (integrationsError) {
-        console.error('Error fetching integrations subtypes:', integrationsError);
-      }
-
-      if (apisError) {
-        console.error('Error fetching core_servicenow_apis subtypes:', apisError);
-      }
-
-      console.log('APIs data for subtypes:', apisData);
-
-      const allTypes = [
-        ...(integrationsData || []).map((item: any) => item.type).filter(Boolean),
-        ...(apisData || []).map((item: any) => item.type).filter(Boolean)
-      ];
-
-      const types = [...new Set(allTypes)].sort();
-      
-      // Always include 'Core ServiceNow APIs' as a special filter if there are any API records
-      const hasApiRecords = (apisData || []).length > 0;
-      console.log('Has API records:', hasApiRecords, 'API data length:', (apisData || []).length);
-      
-      if (hasApiRecords && !types.includes('Core ServiceNow APIs')) {
-        types.unshift('Core ServiceNow APIs');
-      }
-      
-      console.log('Available subtypes:', types);
-      setAvailableSubtypes(types);
     } catch (error) {
       console.error('Error in fetchSubtypes:', error);
       setAvailableSubtypes([]);
@@ -145,136 +110,39 @@ export function useIntegrations() {
         return;
       }
 
-      // Build base filters
-      const searchFilterIntegrations = query.trim() ? {
-        or: `title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,code2.ilike.%${query}%`
-      } : {};
-      const searchFilterApis = query.trim() ? {
-        or: `title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`
-      } : {};
+      let queryBuilder = supabase
+        .from('integrations')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false });
 
-      try {
-        let allMappedData: Integration[] = [];
+      if (myIntegrations) {
+        queryBuilder = queryBuilder.eq('author_id', user?.id);
+      } else {
+        queryBuilder = queryBuilder.eq('is_public', true);
+      }
 
-        // Special handling for "Core ServiceNow APIs" - show all records from core_servicenow_apis table
-        if (subtype === 'Core ServiceNow APIs') {
-          console.log('Fetching Core ServiceNow APIs specifically');
-          
-          // Only query core_servicenow_apis table without type filter
-          let apisQuery = supabase
-            .from('core_servicenow_apis')
-            .select('*')
-            .order('created_at', { ascending: false });
+      if (subtype) {
+        queryBuilder = queryBuilder.eq('type', subtype);
+      }
 
-          // Apply user filter if needed
-          if (myIntegrations) {
-            apisQuery = apisQuery.eq('author_id', user?.id);
-          } else {
-            // For public view, include records where is_public is true OR null
-            apisQuery = apisQuery.or('is_public.eq.true,is_public.is.null');
-          }
+      if (query.trim()) {
+        queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,code2.ilike.%${query}%`);
+      }
 
-          // Apply search filter if provided
-          if (query.trim()) {
-            apisQuery = apisQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
-          }
+      const { data, error, count } = await queryBuilder
+        .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
 
-          const { data: apisData, error: apisError } = await apisQuery;
-
-          console.log('Core ServiceNow APIs query result:', { apisData, apisError });
-
-          if (apisError) {
-            console.error('Error fetching core_servicenow_apis:', apisError);
-          } else {
-            const mappedApis = mapDatabaseToIntegration(apisData || []);
-            allMappedData = [...mappedApis];
-            console.log('Mapped Core ServiceNow APIs:', mappedApis);
-          }
-        } else {
-          // Normal filtering - apply type filter to both tables
-          const typeFilter = subtype ? { type: subtype } : {};
-
-          // Query integrations
-          let integrationsQuery = supabase
-            .from('integrations')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          // Apply user filter if needed
-          if (myIntegrations) {
-            integrationsQuery = integrationsQuery.eq('author_id', user?.id);
-          } else {
-            integrationsQuery = integrationsQuery.eq('is_public', true);
-          }
-
-          // Apply type filter if provided
-          if (subtype) {
-            integrationsQuery = integrationsQuery.eq('type', subtype);
-          }
-
-          // Apply search filter if provided
-          if (query.trim()) {
-            integrationsQuery = integrationsQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,code2.ilike.%${query}%`);
-          }
-
-          const { data: integrationsData, error: integrationsError } = await integrationsQuery;
-
-          // Query core_servicenow_apis
-          let apisQuery = supabase
-            .from('core_servicenow_apis')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          // Apply user filter if needed
-          if (myIntegrations) {
-            apisQuery = apisQuery.eq('author_id', user?.id);
-          } else {
-            apisQuery = apisQuery.or('is_public.eq.true,is_public.is.null');
-          }
-
-          // Apply type filter if provided
-          if (subtype) {
-            apisQuery = apisQuery.eq('type', subtype);
-          }
-
-          // Apply search filter if provided
-          if (query.trim()) {
-            apisQuery = apisQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
-          }
-
-          const { data: apisData, error: apisError } = await apisQuery;
-
-          if (integrationsError) {
-            console.error('Error fetching integrations:', integrationsError);
-          } else {
-            const mappedIntegrations = mapDatabaseToIntegration(integrationsData || []);
-            allMappedData = [...allMappedData, ...mappedIntegrations];
-          }
-
-          if (apisError) {
-            console.error('Error fetching core_servicenow_apis:', apisError);
-          } else {
-            const mappedApis = mapDatabaseToIntegration(apisData || []);
-            allMappedData = [...allMappedData, ...mappedApis];
-          }
-        }
-
-        // Sort combined by created_at desc
-        allMappedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-        // Client-side pagination
-        const start = (page - 1) * ITEMS_PER_PAGE;
-        const end = start + ITEMS_PER_PAGE;
-        const paginatedData = allMappedData.slice(start, end);
-
-        setIntegrations(paginatedData);
-        setTotalCount(allMappedData.length);
-        console.log('Successfully fetched integrations:', paginatedData.length, 'from total', allMappedData.length);
-      } catch (fetchError) {
-        console.error('Error in fetchIntegrations:', fetchError);
+      if (error) {
+        console.error('Error fetching integrations:', error);
         setIntegrations([]);
         setTotalCount(0);
+        return;
       }
+
+      const mappedData = mapDatabaseToIntegration(data || []);
+      setIntegrations(mappedData);
+      setTotalCount(count || 0);
+      console.log('Successfully fetched integrations:', mappedData.length);
     } catch (error) {
       console.error('Error in fetchIntegrations:', error);
       setIntegrations([]);

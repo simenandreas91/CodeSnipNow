@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code, Link, User, Calendar, Zap, Server, Globe } from 'lucide-react';
+import { Code, Link, User, Calendar, Globe } from 'lucide-react';
 import type { Integration } from '../types/snippet';
 
 interface IntegrationCardProps {
@@ -9,7 +9,6 @@ interface IntegrationCardProps {
 
 // Define colors for different integration types, similar to business rules
 const INTEGRATION_TYPE_COLORS = {
-  'Core ServiceNow APIs': 'from-orange-600 to-red-700',
   'Attachments': 'from-blue-600 to-blue-700',
   'AzureAD Integration': 'from-cyan-600 to-cyan-700',
   'REST API': 'from-purple-500 to-purple-600',
@@ -21,17 +20,10 @@ const INTEGRATION_TYPE_COLORS = {
 };
 
 export function IntegrationCard({ integration, onClick }: IntegrationCardProps) {
-  // Determine if this is a Core ServiceNow API based on the type or if it came from core_servicenow_apis table
-  const isCoreServiceNowAPI = integration.type === 'core_servicenow_apis' || 
-                              integration.type === 'Core ServiceNow APIs' ||
-                              !integration.type; // Records from core_servicenow_apis might not have a type
+  const colorClass = INTEGRATION_TYPE_COLORS[integration.type as keyof typeof INTEGRATION_TYPE_COLORS] ||
+                     INTEGRATION_TYPE_COLORS.default;
 
-  // Get the appropriate color scheme
-  const colorClass = INTEGRATION_TYPE_COLORS[integration.type as keyof typeof INTEGRATION_TYPE_COLORS] || 
-                     (isCoreServiceNowAPI ? INTEGRATION_TYPE_COLORS['Core ServiceNow APIs'] : INTEGRATION_TYPE_COLORS.default);
-
-  // Display label - show "Core ServiceNow APIs" for items from that table
-  const displayLabel = isCoreServiceNowAPI ? 'Core ServiceNow APIs' : integration.type;
+  const displayLabel = integration.type || 'Integration';
 
   return (
     <div
@@ -60,14 +52,6 @@ export function IntegrationCard({ integration, onClick }: IntegrationCardProps) 
         <p className="text-slate-300 text-sm mb-4 line-clamp-2">
           {integration.description}
         </p>
-      )}
-
-      {/* ServiceNow API specific metadata */}
-      {isCoreServiceNowAPI && (
-        <div className="flex items-center gap-2 text-xs text-orange-400 mb-3">
-          <Server className="h-3 w-3" />
-          <span>ServiceNow Core API</span>
-        </div>
       )}
 
       {/* Repository path if available */}
