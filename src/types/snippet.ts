@@ -177,5 +177,37 @@ export const ARTIFACT_TYPES: ArtifactType[] = [
     value: 'service_portal_widget',
     table: 'service_portal_widgets',
     icon: 'code'
+  },
+  {
+    label: 'Integrations',
+    value: 'integrations',
+    table: 'integrations',
+    icon: 'plug'
   }
 ];
+
+export interface Integration {
+  id: string;
+  title: string;
+  description?: string;
+  code: string;
+  code2?: string;
+  type: string; // e.g., 'Attachments', 'AzureAD Integration', etc.
+  repo_path?: string;
+  author_id?: string | null;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const INTEGRATION_SUBTYPES = [
+  'Attachments',
+  'AzureAD Integration',
+  'Import Set API',
+  'Import Sets',
+  'MIDServer',
+  'RESTMessageV2',
+  'Scripted REST Api'
+] as const;
+
+export type IntegrationSubtype = typeof INTEGRATION_SUBTYPES[number];
