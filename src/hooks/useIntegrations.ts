@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, hasValidSupabaseCredentials } from '../lib/supabase';
 import type { Integration, IntegrationSubtype } from '../types/snippet';
-import { INTEGRATION_SUBTYPES } from '../types/snippet';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -13,10 +12,16 @@ export function useIntegrations() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubtype, setSelectedSubtype] = useState<IntegrationSubtype | ''>('');
   const [viewMyIntegrations, setViewMyIntegrations] = useState(false);
+  const [availableSubtypes, setAvailableSubtypes] = useState<IntegrationSubtype[]>([]);
+  const [subtypesLoading, setSubtypesLoading] = useState(true);
 
   useEffect(() => {
     fetchIntegrations(currentPage, searchQuery, selectedSubtype, viewMyIntegrations);
   }, [currentPage, searchQuery, selectedSubtype, viewMyIntegrations]);
+
+  useEffect(() => {
+    fetchSubtypes(viewMyIntegrations);
+  }, [viewMyIntegrations]);
 
   const mapDatabaseToIntegration = (data: any[]): Integration[] => {
     return data.map((item: any) => ({
@@ -32,6 +37,50 @@ export function useIntegrations() {
       created_at: item.created_at,
       updated_at: item.updated_at || item.created_at
     }));
+  };
+
+  const fetchSubtypes = async (myIntegrations = false) => {
+    setSubtypesLoading(true);
+
+    try {
+      if (!hasValidSupabaseCredentials || !supabase) {
+        setAvailableSubtypes([]);
+        setSubtypesLoading(false);
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (myIntegrations && !user) {
+        setAvailableSubtypes([]);
+        setSubtypesLoading(false);
+        return;
+      }
+
+      let queryBuilder = supabase
+        .from('integrations')
+        .select('type');
+
+      if (myIntegrations) {
+        queryBuilder = queryBuilder.eq('author_id', user?.id);
+      } else {
+        queryBuilder = queryBuilder.eq('is_public', true);
+      }
+
+      const { data, error } = await queryBuilder;
+
+      if (error) {
+        console.error('Error fetching subtypes:', error);
+        setAvailableSubtypes([]);
+      } else {
+        const types = [...new Set((data || []).map((item: any) => item.type).filter(Boolean))].sort();
+        setAvailableSubtypes(types);
+      }
+    } catch (error) {
+      console.error('Error in fetchSubtypes:', error);
+      setAvailableSubtypes([]);
+    } finally {
+      setSubtypesLoading(false);
+    }
   };
 
   const fetchIntegrations = async (
@@ -53,7 +102,6 @@ export function useIntegrations() {
 
       console.log(`Fetching integrations - Page: ${page}, Query: ${query}, Subtype: ${subtype}, My: ${myIntegrations}`);
 
-      // Get current user for my integrations
       const { data: { user } } = await supabase.auth.getUser();
       if (myIntegrations && !user) {
         setIntegrations([]);
@@ -62,32 +110,27 @@ export function useIntegrations() {
         return;
       }
 
-      // Build base query
       let queryBuilder = supabase
         .from('integrations')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
 
-      // Filter for my integrations
       if (myIntegrations) {
         queryBuilder = queryBuilder.eq('author_id', user?.id);
       } else {
         queryBuilder = queryBuilder.eq('is_public', true);
       }
 
-      // Apply subtype filter
       if (subtype) {
         queryBuilder = queryBuilder.eq('type', subtype);
       }
 
-      // Apply search filter (full-text like snippets, but using ilike on multiple fields)
       if (query.trim()) {
         queryBuilder = queryBuilder.or(
           `title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,code2.ilike.%${query}%`
         );
       }
 
-      // Apply pagination
       const start = (page - 1) * ITEMS_PER_PAGE;
       const end = start + ITEMS_PER_PAGE - 1;
       queryBuilder = queryBuilder.range(start, end);
@@ -150,6 +193,7 @@ export function useIntegrations() {
       }
 
       console.log('Integration created successfully:', result);
+      fetchSubtypes(viewMyIntegrations);
       return result.id;
     } catch (error: any) {
       console.error('Error in createIntegration:', error);
@@ -182,6 +226,7 @@ export function useIntegrations() {
       }
 
       console.log('Integration updated successfully');
+      fetchSubtypes(viewMyIntegrations);
       return true;
     } catch (error: any) {
       console.error('Error in updateIntegration:', error);
@@ -189,10 +234,8 @@ export function useIntegrations() {
     }
   };
 
-  // Calculate total pages
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  // Handler functions
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setCurrentPage(1);
@@ -221,6 +264,8 @@ export function useIntegrations() {
     searchQuery,
     selectedSubtype,
     viewMyIntegrations,
+    availableSubtypes,
+    subtypesLoading,
     handleSearch,
     handleSubtypeChange,
     handleViewMyChange,

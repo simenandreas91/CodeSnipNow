@@ -10,6 +10,7 @@ export interface Snippet {
   description: string;
   script: string;
   artifact_type: string;
+  subtype?: string;
   collection: string;
   condition: string;
   when: string;
@@ -200,14 +201,4 @@ export interface Integration {
   updated_at: string;
 }
 
-export const INTEGRATION_SUBTYPES = [
-  'Attachments',
-  'AzureAD Integration',
-  'Import Set API',
-  'Import Sets',
-  'MIDServer',
-  'RESTMessageV2',
-  'Scripted REST Api'
-] as const;
-
-export type IntegrationSubtype = typeof INTEGRATION_SUBTYPES[number];
+export type IntegrationSubtype = string;

@@ -24,6 +24,7 @@ export function useSnippets() {
       description: item.description || '',
       script: item.code || '',
       artifact_type: artifactType,
+      subtype: artifactType === 'integrations' ? item.type : undefined,
       collection: item.collection || item.table_name || '',
       condition: item.condition || '',
       when: item.when_to_run || item.script_type || '',

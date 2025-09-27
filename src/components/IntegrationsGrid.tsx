@@ -4,7 +4,6 @@ import { IntegrationCard } from './IntegrationCard';
 import { Pagination } from './Pagination';
 import { Loader2, Filter, UserCheck, Eye, Search } from 'lucide-react';
 import type { IntegrationSubtype } from '../types/snippet';
-import { INTEGRATION_SUBTYPES } from '../types/snippet';
 
 export function IntegrationsGrid() {
   const {
@@ -16,6 +15,8 @@ export function IntegrationsGrid() {
     searchQuery,
     selectedSubtype,
     viewMyIntegrations,
+    availableSubtypes,
+    subtypesLoading,
     handleSearch,
     handleSubtypeChange,
     handleViewMyChange,
@@ -66,15 +67,19 @@ export function IntegrationsGrid() {
           <select
             value={selectedSubtype}
             onChange={(e) => handleSubtypeChange(e.target.value as IntegrationSubtype | '')}
-            className="bg-slate-700/50 border border-slate-600/50 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            disabled={subtypesLoading}
+            className="bg-slate-700/50 border border-slate-600/50 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">All Types</option>
-            {INTEGRATION_SUBTYPES.map((subtype) => (
+            {availableSubtypes.map((subtype) => (
               <option key={subtype} value={subtype}>
                 {subtype}
               </option>
             ))}
           </select>
+          {subtypesLoading && (
+            <span className="text-xs text-slate-400">Loading types...</span>
+          )}
         </div>
 
         {/* View Toggle */}

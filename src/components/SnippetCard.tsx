@@ -19,6 +19,7 @@ const ARTIFACT_TYPE_COLORS = {
   inbound_action: 'from-orange-500 to-orange-600',
   mail_script: 'from-green-500 to-green-600',
   service_portal_widget: 'from-pink-500 to-pink-600',
+  integrations: 'from-violet-500 to-violet-600',
   other: 'from-slate-500 to-slate-600',
 };
 
@@ -34,12 +35,16 @@ const ARTIFACT_TYPE_LABELS = {
   inbound_action: 'Inbound Action',
   mail_script: 'Mail Script',
   service_portal_widget: 'Service Portal Widget',
+  integrations: 'Integrations',
   other: 'Other',
 };
 
 export function SnippetCard({ snippet, onClick }: SnippetCardProps) {
   const colorClass = ARTIFACT_TYPE_COLORS[snippet.artifact_type as keyof typeof ARTIFACT_TYPE_COLORS] || ARTIFACT_TYPE_COLORS.other;
   const typeLabel = ARTIFACT_TYPE_LABELS[snippet.artifact_type as keyof typeof ARTIFACT_TYPE_LABELS] || 'Other';
+  
+  // For integrations, display the subtype if available, otherwise fall back to the main type label
+  const displayLabel = snippet.artifact_type === 'integrations' && snippet.subtype ? snippet.subtype : typeLabel;
 
   return (
     <div
@@ -48,7 +53,7 @@ export function SnippetCard({ snippet, onClick }: SnippetCardProps) {
     >
       <div className="flex items-start justify-between mb-4">
         <div className={`px-3 py-1 rounded-full text-xs font-medium text-white bg-gradient-to-r ${colorClass}`}>
-          {typeLabel}
+          {displayLabel}
         </div>
         {snippet.active && (
           <div className="flex items-center gap-1 text-green-400">
