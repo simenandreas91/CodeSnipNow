@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useIntegrations } from '../hooks/useIntegrations';
 import { IntegrationCard } from './IntegrationCard';
 import { Pagination } from './Pagination';
 import { Loader2, Filter, UserCheck, Eye, Search } from 'lucide-react';
-import type { IntegrationSubtype } from '../types/snippet';
+import { IntegrationModal } from './IntegrationModal';
+import type { Integration, IntegrationSubtype } from '../types/snippet';
 
 export function IntegrationsGrid() {
   const {
@@ -23,6 +24,7 @@ export function IntegrationsGrid() {
     handlePageChange,
     ITEMS_PER_PAGE
   } = useIntegrations();
+  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
 
   if (loading) {
     return (
@@ -38,7 +40,7 @@ export function IntegrationsGrid() {
   if (integrations.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="text-6xl mb-4">🔌</div>
+        <div className="text-6xl mb-4">??</div>
         <h3 className="text-xl font-semibold text-white mb-2">No integrations found</h3>
         <p className="text-slate-400">Try adjusting your search or filter criteria.</p>
       </div>
@@ -104,10 +106,7 @@ export function IntegrationsGrid() {
           <IntegrationCard
             key={integration.id}
             integration={integration}
-            onClick={() => {
-              // TODO: Open modal or navigate to detail view
-              console.log('Open integration:', integration.id);
-            }}
+            onClick={() => setSelectedIntegration(integration)}
           />
         ))}
       </div>
@@ -120,6 +119,13 @@ export function IntegrationsGrid() {
           totalItems={totalCount}
           itemsPerPage={ITEMS_PER_PAGE}
           onPageChange={handlePageChange}
+        />
+      )}
+
+      {selectedIntegration && (
+        <IntegrationModal
+          integration={selectedIntegration}
+          onClose={() => setSelectedIntegration(null)}
         />
       )}
     </div>
