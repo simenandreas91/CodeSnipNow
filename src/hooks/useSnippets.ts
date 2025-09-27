@@ -24,7 +24,7 @@ export function useSnippets() {
       description: item.description || '',
       script: item.code || '',
       artifact_type: artifactType,
-      subtype: artifactType === 'integrations' ? item.type : undefined,
+      subtype: ['integrations', 'core_servicenow_apis'].includes(artifactType) ? item.type : undefined,
       collection: item.collection || item.table_name || '',
       condition: item.condition || '',
       when: item.when_to_run || item.script_type || '',
@@ -167,7 +167,9 @@ export function useSnippets() {
             .from(typeConfig.table)
             .select('*', { count: 'exact' });
 
-          if (typeConfig.table !== 'mail_scripts' && typeConfig.table !== 'inbound_actions') {
+          const publicFilterExceptions = ['mail_scripts', 'inbound_actions', 'core_servicenow_apis'];
+
+          if (!publicFilterExceptions.includes(typeConfig.table)) {
             queryBuilder = queryBuilder.eq('is_public', true);
           }
 
@@ -531,3 +533,4 @@ export function useSnippets() {
     ITEMS_PER_PAGE
   };
 }
+

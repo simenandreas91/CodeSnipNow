@@ -184,6 +184,12 @@ export const ARTIFACT_TYPES: ArtifactType[] = [
     value: 'integrations',
     table: 'integrations',
     icon: 'plug'
+  },
+  {
+    label: 'Core ServiceNow APIs',
+    value: 'core_servicenow_apis',
+    table: 'core_servicenow_apis',
+    icon: 'server'
   }
 ];
 

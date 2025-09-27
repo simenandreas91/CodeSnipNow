@@ -65,7 +65,6 @@ CodeSnipNow is a modern web application designed as a catalog for ServiceNow aut
 - **Create a Snippet**: Click "Create Snippet" in the header (requires login). Select an artifact type and fill in details like title, description, code, and type-specific fields (e.g., condition for Business Rules).
 - **View Snippet**: Click on a snippet card to open a modal with full details and edit options.
 - **My Snippets**: Filter by "My Snippets" to view and manage your own creations.
-- **Import from GitHub**: Use the GitHub Import Modal (if implemented) for bulk uploads.
 
 For ServiceNow integration, ensure your snippets align with the defined artifact types and fields.
 
@@ -81,6 +80,12 @@ Snippets are stored in separate Supabase tables per artifact type:
 - `background_scripts`
 - `catalog_client_scripts`
 - `service_portal_widgets`
+- `integrations`
+- `background_scripts`
+- `mail_scripts`
+- `inbound_actions`
+- `core_service_apis`
+
 
 Each table includes core fields like `title`, `description`, `code`, `tags`, `is_public`, `author_id`, plus type-specific fields (e.g., `when_to_run` for Business Rules).
 

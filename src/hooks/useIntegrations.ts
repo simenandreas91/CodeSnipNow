@@ -56,25 +56,60 @@ export function useIntegrations() {
         return;
       }
 
-      let queryBuilder = supabase
+      // Fetch from integrations table
+      let integrationsQuery = supabase
         .from('integrations')
         .select('type');
 
       if (myIntegrations) {
-        queryBuilder = queryBuilder.eq('author_id', user?.id);
+        integrationsQuery = integrationsQuery.eq('author_id', user?.id);
       } else {
-        queryBuilder = queryBuilder.eq('is_public', true);
+        integrationsQuery = integrationsQuery.eq('is_public', true);
       }
 
-      const { data, error } = await queryBuilder;
+      const { data: integrationsData, error: integrationsError } = await integrationsQuery;
 
-      if (error) {
-        console.error('Error fetching subtypes:', error);
-        setAvailableSubtypes([]);
+      // Fetch from core_servicenow_apis table - check for any records regardless of is_public status
+      let apisQuery = supabase
+        .from('core_servicenow_apis')
+        .select('type, is_public');
+
+      if (myIntegrations) {
+        apisQuery = apisQuery.eq('author_id', user?.id);
       } else {
-        const types = [...new Set((data || []).map((item: any) => item.type).filter(Boolean))].sort();
-        setAvailableSubtypes(types);
+        // For public view, include records where is_public is true OR null (default behavior)
+        apisQuery = apisQuery.or('is_public.eq.true,is_public.is.null');
       }
+
+      const { data: apisData, error: apisError } = await apisQuery;
+
+      if (integrationsError) {
+        console.error('Error fetching integrations subtypes:', integrationsError);
+      }
+
+      if (apisError) {
+        console.error('Error fetching core_servicenow_apis subtypes:', apisError);
+      }
+
+      console.log('APIs data for subtypes:', apisData);
+
+      const allTypes = [
+        ...(integrationsData || []).map((item: any) => item.type).filter(Boolean),
+        ...(apisData || []).map((item: any) => item.type).filter(Boolean)
+      ];
+
+      const types = [...new Set(allTypes)].sort();
+      
+      // Always include 'Core ServiceNow APIs' as a special filter if there are any API records
+      const hasApiRecords = (apisData || []).length > 0;
+      console.log('Has API records:', hasApiRecords, 'API data length:', (apisData || []).length);
+      
+      if (hasApiRecords && !types.includes('Core ServiceNow APIs')) {
+        types.unshift('Core ServiceNow APIs');
+      }
+      
+      console.log('Available subtypes:', types);
+      setAvailableSubtypes(types);
     } catch (error) {
       console.error('Error in fetchSubtypes:', error);
       setAvailableSubtypes([]);
@@ -110,42 +145,135 @@ export function useIntegrations() {
         return;
       }
 
-      let queryBuilder = supabase
-        .from('integrations')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false });
+      // Build base filters
+      const searchFilterIntegrations = query.trim() ? {
+        or: `title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,code2.ilike.%${query}%`
+      } : {};
+      const searchFilterApis = query.trim() ? {
+        or: `title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`
+      } : {};
 
-      if (myIntegrations) {
-        queryBuilder = queryBuilder.eq('author_id', user?.id);
-      } else {
-        queryBuilder = queryBuilder.eq('is_public', true);
-      }
+      try {
+        let allMappedData: Integration[] = [];
 
-      if (subtype) {
-        queryBuilder = queryBuilder.eq('type', subtype);
-      }
+        // Special handling for "Core ServiceNow APIs" - show all records from core_servicenow_apis table
+        if (subtype === 'Core ServiceNow APIs') {
+          console.log('Fetching Core ServiceNow APIs specifically');
+          
+          // Only query core_servicenow_apis table without type filter
+          let apisQuery = supabase
+            .from('core_servicenow_apis')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-      if (query.trim()) {
-        queryBuilder = queryBuilder.or(
-          `title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,code2.ilike.%${query}%`
-        );
-      }
+          // Apply user filter if needed
+          if (myIntegrations) {
+            apisQuery = apisQuery.eq('author_id', user?.id);
+          } else {
+            // For public view, include records where is_public is true OR null
+            apisQuery = apisQuery.or('is_public.eq.true,is_public.is.null');
+          }
 
-      const start = (page - 1) * ITEMS_PER_PAGE;
-      const end = start + ITEMS_PER_PAGE - 1;
-      queryBuilder = queryBuilder.range(start, end);
+          // Apply search filter if provided
+          if (query.trim()) {
+            apisQuery = apisQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
+          }
 
-      const { data, error, count } = await queryBuilder;
+          const { data: apisData, error: apisError } = await apisQuery;
 
-      if (error) {
-        console.error('Error fetching integrations:', error);
+          console.log('Core ServiceNow APIs query result:', { apisData, apisError });
+
+          if (apisError) {
+            console.error('Error fetching core_servicenow_apis:', apisError);
+          } else {
+            const mappedApis = mapDatabaseToIntegration(apisData || []);
+            allMappedData = [...mappedApis];
+            console.log('Mapped Core ServiceNow APIs:', mappedApis);
+          }
+        } else {
+          // Normal filtering - apply type filter to both tables
+          const typeFilter = subtype ? { type: subtype } : {};
+
+          // Query integrations
+          let integrationsQuery = supabase
+            .from('integrations')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          // Apply user filter if needed
+          if (myIntegrations) {
+            integrationsQuery = integrationsQuery.eq('author_id', user?.id);
+          } else {
+            integrationsQuery = integrationsQuery.eq('is_public', true);
+          }
+
+          // Apply type filter if provided
+          if (subtype) {
+            integrationsQuery = integrationsQuery.eq('type', subtype);
+          }
+
+          // Apply search filter if provided
+          if (query.trim()) {
+            integrationsQuery = integrationsQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,code2.ilike.%${query}%`);
+          }
+
+          const { data: integrationsData, error: integrationsError } = await integrationsQuery;
+
+          // Query core_servicenow_apis
+          let apisQuery = supabase
+            .from('core_servicenow_apis')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          // Apply user filter if needed
+          if (myIntegrations) {
+            apisQuery = apisQuery.eq('author_id', user?.id);
+          } else {
+            apisQuery = apisQuery.or('is_public.eq.true,is_public.is.null');
+          }
+
+          // Apply type filter if provided
+          if (subtype) {
+            apisQuery = apisQuery.eq('type', subtype);
+          }
+
+          // Apply search filter if provided
+          if (query.trim()) {
+            apisQuery = apisQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
+          }
+
+          const { data: apisData, error: apisError } = await apisQuery;
+
+          if (integrationsError) {
+            console.error('Error fetching integrations:', integrationsError);
+          } else {
+            const mappedIntegrations = mapDatabaseToIntegration(integrationsData || []);
+            allMappedData = [...allMappedData, ...mappedIntegrations];
+          }
+
+          if (apisError) {
+            console.error('Error fetching core_servicenow_apis:', apisError);
+          } else {
+            const mappedApis = mapDatabaseToIntegration(apisData || []);
+            allMappedData = [...allMappedData, ...mappedApis];
+          }
+        }
+
+        // Sort combined by created_at desc
+        allMappedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+        // Client-side pagination
+        const start = (page - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        const paginatedData = allMappedData.slice(start, end);
+
+        setIntegrations(paginatedData);
+        setTotalCount(allMappedData.length);
+        console.log('Successfully fetched integrations:', paginatedData.length, 'from total', allMappedData.length);
+      } catch (fetchError) {
+        console.error('Error in fetchIntegrations:', fetchError);
         setIntegrations([]);
         setTotalCount(0);
-      } else {
-        const mappedData = mapDatabaseToIntegration(data || []);
-        setIntegrations(mappedData);
-        setTotalCount(count || 0);
-        console.log('Successfully fetched integrations:', mappedData.length);
       }
     } catch (error) {
       console.error('Error in fetchIntegrations:', error);

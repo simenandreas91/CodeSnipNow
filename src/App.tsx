@@ -62,19 +62,25 @@ function App() {
             user={user}
           />
 
-          <SnippetGrid 
-            snippets={snippets}
-            loading={snippetsLoading}
-            onSnippetClick={setSelectedSnippet}
-          />
+          {selectedArtifactType === 'integrations' ? (
+            <IntegrationsGrid />
+          ) : (
+            <>
+              <SnippetGrid 
+                snippets={snippets}
+                loading={snippetsLoading}
+                onSnippetClick={setSelectedSnippet}
+              />
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalCount}
-            itemsPerPage={12}
-            onPageChange={handlePageChange}
-          />
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalCount}
+                itemsPerPage={12}
+                onPageChange={handlePageChange}
+              />
+            </>
+          )}
         </main>
 
         {selectedSnippet && (
