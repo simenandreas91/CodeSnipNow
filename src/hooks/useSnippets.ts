@@ -492,6 +492,14 @@ export function useSnippets() {
             updateData.script_type = updates.when;
           }
         }
+
+        if (updates.order !== undefined && ['business_rule', 'client_script', 'ui_action'].includes(updates.artifact_type)) {
+          updateData.order_value = updates.order;
+        }
+
+        if (updates.priority !== undefined && updates.artifact_type === 'business_rule') {
+          updateData.priority = updates.priority;
+        }
         
         if (updates.condition) updateData.condition = updates.condition;
         if (updates.active !== undefined) updateData.active = updates.active;

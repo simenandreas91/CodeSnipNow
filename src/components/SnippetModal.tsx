@@ -22,6 +22,8 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
     collection: snippet.collection || '',
     condition: snippet.condition || '',
     when: snippet.when || '',
+    order: snippet.order !== undefined ? String(snippet.order) : '',
+    priority: snippet.priority !== undefined ? String(snippet.priority) : '',
     tags: [...snippet.tags],
     // Service Portal Widget specific fields
     html: snippet.html || '',
@@ -44,6 +46,8 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
       collection: snippet.collection || '',
       condition: snippet.condition || '',
       when: snippet.when || '',
+      order: snippet.order !== undefined ? String(snippet.order) : '',
+      priority: snippet.priority !== undefined ? String(snippet.priority) : '',
       tags: [...snippet.tags],
       // Service Portal Widget specific fields
       html: snippet.html || '',
@@ -61,6 +65,14 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
       return value.charAt(0).toUpperCase() + value.slice(1);
     }
     return value;
+  };
+
+  const parseNumericInput = (value?: string) => {
+    if (value === undefined || value === null) return undefined;
+    const trimmed = value.toString().trim();
+    if (trimmed === '') return undefined;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : undefined;
   };
 
   const handleCopy = async () => {
@@ -84,6 +96,16 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
 
       if (snippet.artifact_type === 'business_rule' || snippet.artifact_type === 'client_script') {
         updates.when = editData.when;
+      }
+
+      const orderValue = parseNumericInput(editData.order);
+      if (orderValue !== undefined) {
+        updates.order = orderValue;
+      }
+
+      const priorityValue = parseNumericInput(editData.priority);
+      if (priorityValue !== undefined) {
+        updates.priority = priorityValue;
       }
 
       // Add artifact-specific fields
@@ -192,6 +214,16 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
 
       if (snippet.artifact_type === 'business_rule' || snippet.artifact_type === 'client_script') {
         updates.when = editData.when;
+      }
+
+      const orderValue = parseNumericInput(editData.order);
+      if (orderValue !== undefined) {
+        updates.order = orderValue;
+      }
+
+      const priorityValue = parseNumericInput(editData.priority);
+      if (priorityValue !== undefined) {
+        updates.priority = priorityValue;
       }
 
       // Add artifact-specific fields
@@ -310,6 +342,8 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
                       collection: snippet.collection || '',
                       condition: snippet.condition || '',
                       when: snippet.when || '',
+                      order: snippet.order !== undefined ? String(snippet.order) : '',
+                      priority: snippet.priority !== undefined ? String(snippet.priority) : '',
                       tags: [...snippet.tags],
                       html: snippet.html || '',
                       css: snippet.css || '',
@@ -507,19 +541,39 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
               </div>
             )}
 
-            {snippet.order !== undefined && (
+            {(snippet.order !== undefined || isEditing) && (
               <div className="flex items-center gap-2 text-slate-300">
                 <Shield className="h-4 w-4 text-orange-400" />
                 <span className="font-medium">Order:</span>
-                <span className="text-orange-300">{snippet.order}</span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    value={editData.order}
+                    onChange={(e) => setEditData(prev => ({ ...prev, order: e.target.value }))}
+                    className="w-24 bg-white/10 border border-orange-500/40 rounded px-2 py-1 text-orange-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                    placeholder="Order"
+                  />
+                ) : (
+                  <span className="text-orange-300">{snippet.order}</span>
+                )}
               </div>
             )}
 
-            {snippet.priority !== undefined && (
+            {(snippet.priority !== undefined || isEditing) && (
               <div className="flex items-center gap-2 text-slate-300">
                 <Shield className="h-4 w-4 text-red-400" />
                 <span className="font-medium">Priority:</span>
-                <span className="text-red-300">{snippet.priority}</span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    value={editData.priority}
+                    onChange={(e) => setEditData(prev => ({ ...prev, priority: e.target.value }))}
+                    className="w-24 bg-white/10 border border-red-500/40 rounded px-2 py-1 text-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
+                    placeholder="Priority"
+                  />
+                ) : (
+                  <span className="text-red-300">{snippet.priority}</span>
+                )}
               </div>
             )}
           </div>
