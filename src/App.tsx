@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
 import { SnippetGrid } from './components/SnippetGrid';
 import { IntegrationsGrid } from './components/IntegrationsGrid';
+import { SpecializedAreasGrid } from './components/SpecializedAreasGrid';
 import { SnippetModal } from './components/SnippetModal';
 import { Pagination } from './components/Pagination';
 import { AuthModal } from './components/AuthModal';
@@ -64,6 +65,8 @@ function App() {
 
           {selectedArtifactType === 'integrations' ? (
             <IntegrationsGrid />
+          ) : selectedArtifactType === 'specialized_areas' ? (
+            <SpecializedAreasGrid />
           ) : (
             <>
               <SnippetGrid 

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Calendar, User, Globe, Shield, GitBranch } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
-import type { Integration } from '../types/snippet';
+import type { IntegrationLike } from '../types/snippet';
 
 interface IntegrationModalProps {
-  integration: Integration;
+  integration: IntegrationLike;
   onClose: () => void;
+  entityLabel?: string;
 }
 
-export function IntegrationModal({ integration, onClose }: IntegrationModalProps) {
+export function IntegrationModal({ integration, onClose, entityLabel = 'Integration' }: IntegrationModalProps) {
   const [copiedSection, setCopiedSection] = useState<'primary' | 'secondary' | null>(null);
 
   const handleCopy = async (code: string, section: 'primary' | 'secondary') => {
@@ -40,7 +41,7 @@ export function IntegrationModal({ integration, onClose }: IntegrationModalProps
           <div>
             <div className="flex flex-wrap items-center gap-3 mb-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-200">
-                {integration.type || 'Integration'}
+                {integration.type || entityLabel}
               </span>
               {integration.is_public ? (
                 <span className="inline-flex items-center gap-2 text-xs text-emerald-300">
@@ -70,7 +71,7 @@ export function IntegrationModal({ integration, onClose }: IntegrationModalProps
             type="button"
             onClick={onClose}
             className="text-slate-300 hover:text-white transition-colors"
-            aria-label="Close integration details"
+            aria-label={`Close ${entityLabel.toLowerCase()} details`}
           >
             <X className="h-6 w-6" />
           </button>
@@ -156,3 +157,4 @@ export function IntegrationModal({ integration, onClose }: IntegrationModalProps
     </div>
   );
 }
+

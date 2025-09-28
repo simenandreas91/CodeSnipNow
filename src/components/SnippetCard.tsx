@@ -19,6 +19,7 @@ const ARTIFACT_TYPE_COLORS = {
   mail_script: 'from-green-500 to-green-600',
   service_portal_widget: 'from-pink-500 to-pink-600',
   integrations: 'from-violet-500 to-violet-600',
+  specialized_areas: 'from-teal-500 to-emerald-600',
   core_servicenow_apis: 'from-orange-600 to-red-700',
   other: 'from-slate-500 to-slate-600',
 };
@@ -36,6 +37,7 @@ const ARTIFACT_TYPE_LABELS = {
   mail_script: 'Mail Script',
   service_portal_widget: 'Service Portal Widget',
   integrations: 'Integrations',
+  specialized_areas: 'Specialized Areas',
   core_servicenow_apis: 'Core ServiceNow APIs',
   other: 'Other',
 };
@@ -45,7 +47,7 @@ export function SnippetCard({ snippet, onClick }: SnippetCardProps) {
   const typeLabel = ARTIFACT_TYPE_LABELS[snippet.artifact_type as keyof typeof ARTIFACT_TYPE_LABELS] || 'Other';
   
   // For integrations and core ServiceNow APIs, display the subtype if available, otherwise fall back to the main type label
-  const displayLabel = ['integrations', 'core_servicenow_apis'].includes(snippet.artifact_type) && snippet.subtype
+  const displayLabel = ['integrations', 'core_servicenow_apis', 'specialized_areas'].includes(snippet.artifact_type) && snippet.subtype
     ? snippet.subtype
     : typeLabel;
 

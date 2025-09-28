@@ -186,6 +186,12 @@ export const ARTIFACT_TYPES: ArtifactType[] = [
     icon: 'plug'
   },
   {
+    label: 'Specialized Areas',
+    value: 'specialized_areas',
+    table: 'specialized_areas',
+    icon: 'layers'
+  },
+  {
     label: 'Core ServiceNow APIs',
     value: 'core_servicenow_apis',
     table: 'core_servicenow_apis',
@@ -208,3 +214,9 @@ export interface Integration {
 }
 
 export type IntegrationSubtype = string;
+
+export interface SpecializedArea extends Integration {}
+
+export type SpecializedAreaSubtype = string;
+
+export type IntegrationLike = Integration | SpecializedArea;

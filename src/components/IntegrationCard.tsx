@@ -1,9 +1,10 @@
 import { Code, Link, User, Calendar, Globe } from 'lucide-react';
-import type { Integration } from '../types/snippet';
+import type { IntegrationLike } from '../types/snippet';
 
 interface IntegrationCardProps {
-  integration: Integration;
+  integration: IntegrationLike;
   onClick: () => void;
+  fallbackLabel?: string;
 }
 
 // Define colors for different integration types, similar to business rules
@@ -15,14 +16,22 @@ const INTEGRATION_TYPE_COLORS = {
   'Database': 'from-green-500 to-green-600',
   'File System': 'from-yellow-500 to-yellow-600',
   'Email': 'from-pink-500 to-pink-600',
+  'Fix Script': 'from-amber-500 to-amber-600',
+  'Dynamic Filter': 'from-emerald-500 to-emerald-600',
+  'Dynamic Filters': 'from-emerald-500 to-emerald-600',
+  'CMDB': 'from-sky-500 to-sky-600',
+  'Browser Bookmarklet': 'from-rose-500 to-rose-600',
+  'Agile Development': 'from-purple-500 to-purple-600',
+  'Advanced Condition': 'from-indigo-500 to-indigo-600',
+  'Advanced Conditions': 'from-indigo-500 to-indigo-600',
   'default': 'from-slate-500 to-slate-600'
 };
 
-export function IntegrationCard({ integration, onClick }: IntegrationCardProps) {
+export function IntegrationCard({ integration, onClick, fallbackLabel = 'Integration' }: IntegrationCardProps) {
   const colorClass = INTEGRATION_TYPE_COLORS[integration.type as keyof typeof INTEGRATION_TYPE_COLORS] ||
                      INTEGRATION_TYPE_COLORS.default;
 
-  const displayLabel = integration.type || 'Integration';
+  const displayLabel = integration.type || fallbackLabel;
 
   return (
     <div

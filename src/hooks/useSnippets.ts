@@ -24,7 +24,7 @@ export function useSnippets() {
       description: item.description || '',
       script: item.code || '',
       artifact_type: artifactType,
-      subtype: ['integrations', 'core_servicenow_apis'].includes(artifactType) ? item.type : undefined,
+      subtype: ['integrations', 'core_servicenow_apis', 'specialized_areas'].includes(artifactType) ? item.type : undefined,
       collection: item.collection || item.table_name || '',
       condition: item.condition || '',
       when: item.when_to_run || item.script_type || '',
