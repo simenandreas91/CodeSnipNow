@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, Image as ImageIcon } from 'lucide-react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../lib/markdown';
 import { CodeBlock } from './CodeBlock';
 import { ImageUploadModal } from './ImageUploadModal';
-import { StorageService } from '../lib/storage';
 import type { Snippet } from '../types/snippet';
 
 interface SnippetModalProps {
@@ -51,47 +50,6 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
       server_script: snippet.server_script || ''
     });
   }, [snippet]);
-
-  // Configure marked for safe HTML rendering
-  marked.setOptions({
-    breaks: true,
-    gfm: true,
-  });
-
-  const renderMarkdown = (text: string, repoPath?: string) => {
-    try {
-      let processedText = text;
-
-      // Preprocess GitHub blob URLs to raw URLs for images
-      processedText = processedText.replace(
-        /!\[([^\]]*)\]\(https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+?)\)/g,
-        (match, alt, owner, repo, branchOrHash, path) => {
-          const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branchOrHash}/${path}`;
-          return `![${alt}](${rawUrl})`;
-        }
-      );
-
-      // Preprocess relative image paths to full raw GitHub URLs if repo_path is available
-      if (repoPath) {
-        const baseRawUrl = `https://raw.githubusercontent.com/ServiceNowDevProgram/code-snippets/main`;
-        processedText = processedText.replace(
-          /!\[([^\]]*)\]\((?!https:)([^)]+)\)/g,
-          (match, alt, relativePath) => {
-            const imageFilename = relativePath.replace(/^\.\//, ''); // Remove ./ prefix if present
-            const fullPath = `${repoPath}/${imageFilename}`;
-            const encodedPath = encodeURIComponent(fullPath); // Proper encoding for spaces (%20)
-            const rawUrl = `${baseRawUrl}/${encodedPath}`;
-            return `![${alt}](${rawUrl})`;
-          }
-        );
-      }
-
-      return marked(processedText);
-    } catch (error) {
-      console.warn('Error rendering markdown:', error);
-      return text; // Fallback to plain text
-    }
-  };
 
   const isAdmin = user?.email === 'simenstaabyknudsen@gmail.com';
 

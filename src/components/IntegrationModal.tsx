@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Calendar, User, Globe, Shield, GitBranch } from 'lucide-react';
+import { renderMarkdown } from '../lib/markdown';
 import { CodeBlock } from './CodeBlock';
 import type { IntegrationLike } from '../types/snippet';
 
@@ -61,9 +62,12 @@ export function IntegrationModal({ integration, onClose, entityLabel = 'Integrat
             </h2>
 
             {integration.description && (
-              <p className="mt-3 text-sm text-slate-300 whitespace-pre-line">
-                {integration.description}
-              </p>
+              <div
+                className="mt-3 text-sm text-slate-300 leading-relaxed prose prose-invert prose-slate max-w-none"
+                dangerouslySetInnerHTML={{
+                  __html: renderMarkdown(integration.description, integration.repo_path)
+                }}
+              />
             )}
           </div>
 
@@ -157,4 +161,5 @@ export function IntegrationModal({ integration, onClose, entityLabel = 'Integrat
     </div>
   );
 }
+
 
