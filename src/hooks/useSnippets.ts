@@ -552,6 +552,37 @@ export function useSnippets() {
     }
   };
 
+  const deleteSnippet = async (snippetId: string, artifactType: string) => {
+    if (!hasValidSupabaseCredentials || !supabase) {
+      throw new Error('Database not configured');
+    }
+
+    try {
+      const artifactConfig = ARTIFACT_TYPES.find(type => type.value === artifactType);
+      if (!artifactConfig) {
+        throw new Error('Invalid artifact type');
+      }
+
+      const { error } = await supabase
+        .from(artifactConfig.table)
+        .delete()
+        .eq('id', snippetId);
+
+      if (error) {
+        console.error('Error deleting snippet:', error);
+        throw new Error(`Failed to delete snippet: ${error.message}`);
+      }
+
+      setSnippets(prev => prev.filter(snippet => snippet.id !== snippetId));
+      setTotalCount(prev => Math.max(prev - 1, 0));
+
+      return true;
+    } catch (error: any) {
+      console.error('Error in deleteSnippet:', error);
+      throw new Error(error.message || 'Failed to delete snippet');
+    }
+  };
+
   return {
     snippets,
     loading,
@@ -565,6 +596,7 @@ export function useSnippets() {
     handlePageChange,
     createSnippet,
     updateSnippet,
+    deleteSnippet,
     checkForDuplicate,
     ITEMS_PER_PAGE
   };

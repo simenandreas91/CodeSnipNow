@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, Image as ImageIcon, ChevronDown } from 'lucide-react';
+import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, Image as ImageIcon, ChevronDown, Trash2, Loader2 } from 'lucide-react';
 import { renderMarkdown } from '../lib/markdown';
 import { CodeBlock } from './CodeBlock';
 import { ImageUploadModal } from './ImageUploadModal';
@@ -10,6 +10,7 @@ interface SnippetModalProps {
   onClose: () => void;
   user?: { id: string; username?: string; email?: string } | null;
   onUpdateSnippet?: (snippetId: string, updates: Partial<Snippet>) => Promise<void>;
+  onDeleteSnippet?: (snippetId: string) => Promise<void>;
 }
 
 type FilterConditionItem = {
@@ -210,10 +211,10 @@ const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
         <div className="space-y-2">
           {items.map((item, idx) => {
             const label = mapOperatorLabel(item.operator);
+            const nextLogical = idx < items.length - 1 ? items[idx + 1].logical : null;
             const showField = Boolean(item.field);
             const showValue = Boolean(item.value);
             const showLabel = Boolean(label && (showField || showValue));
-            const showLogical = idx > 0 && item.logical;
             const showTags = item.isNewGroup || item.isEnd;
             if (!showField && !showValue && !showLabel && !showTags) {
               return null;
@@ -222,18 +223,22 @@ const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
             return (
               <div
                 key={`${item.field || 'condition'}-${idx}`}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
+                className="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
               >
-                {showLogical && (
-                  <span className="text-xs font-semibold text-slate-400">{item.logical}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {showField && (
+                    <span className="font-semibold text-blue-200">{formatFieldLabel(item.field)}</span>
+                  )}
+                  {showLabel && <span className="text-slate-300">{label}</span>}
+                  {showValue && <span className="text-emerald-200 font-mono">{item.value}</span>}
+                  {item.isNewGroup && <span className="text-xs text-amber-300">New group</span>}
+                  {item.isEnd && <span className="text-xs text-slate-500">End</span>}
+                </div>
+                {nextLogical && (
+                  <span className="px-2 py-1 text-[10px] uppercase tracking-wide rounded-full border border-white/20 bg-white/10 text-slate-200">
+                    {nextLogical}
+                  </span>
                 )}
-                {showField && (
-                  <span className="font-semibold text-blue-200">{formatFieldLabel(item.field)}</span>
-                )}
-                {showLabel && <span className="text-slate-300">{label}</span>}
-                {showValue && <span className="text-emerald-200 font-mono">{item.value}</span>}
-                {item.isNewGroup && <span className="text-xs text-amber-300">New group</span>}
-                {item.isEnd && <span className="text-xs text-slate-500">End</span>}
               </div>
             );
           })}
@@ -313,6 +318,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
     server_script: snippet.server_script || ''
   }));
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [insertPosition, setInsertPosition] = useState<number | null>(null);
@@ -378,6 +384,23 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
     await navigator.clipboard.writeText(snippet.script);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDelete = async () => {
+    if (!onDeleteSnippet) return;
+    const confirmed = window.confirm(`Delete snippet "${snippet.name}"? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      await onDeleteSnippet(snippet.id);
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete snippet:', error);
+      alert('Failed to delete snippet. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSave = async () => {
@@ -636,6 +659,21 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
                 title="Upload image"
               >
                 <ImageIcon className="h-5 w-5" />
+              </button>
+            )}
+            {isAdmin && onDeleteSnippet && !isEditing && (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 px-3 py-1 bg-red-500/20 border border-red-500/40 text-red-200 rounded text-sm transition-colors hover:bg-red-500/30 disabled:opacity-50"
+                title="Delete snippet"
+              >
+                {deleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                <span>Delete</span>
               </button>
             )}
             {isEditing && (

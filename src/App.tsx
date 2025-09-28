@@ -30,7 +30,8 @@ function App() {
     handleArtifactTypeChange,
     handlePageChange,
     createSnippet,
-    updateSnippet
+    updateSnippet,
+    deleteSnippet
   } = useSnippets();
 
   return (
@@ -91,6 +92,15 @@ function App() {
             snippet={selectedSnippet}
             onClose={() => setSelectedSnippet(null)}
             user={user}
+            onDeleteSnippet={async (snippetId) => {
+              try {
+                await deleteSnippet(snippetId, selectedSnippet.artifact_type);
+                setSelectedSnippet(null);
+              } catch (error) {
+                console.error('Failed to delete snippet:', error);
+                throw error;
+              }
+            }}
             onUpdateSnippet={async (snippetId, updates) => {
               // Update the snippet in the database and refresh the list
               try {
