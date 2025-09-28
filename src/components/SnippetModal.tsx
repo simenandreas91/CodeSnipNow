@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, Image as ImageIcon, ChevronDown } from 'lucide-react';
 import { renderMarkdown } from '../lib/markdown';
 import { CodeBlock } from './CodeBlock';
@@ -12,6 +12,103 @@ interface SnippetModalProps {
   onUpdateSnippet?: (snippetId: string, updates: Partial<Snippet>) => Promise<void>;
 }
 
+type ParsedFilterCondition =
+  | { kind: 'xml'; table?: string; summary?: string; items: Array<{ field: string; operator: string; value: string; logical: 'AND' | 'OR'; isEnd: boolean; isNewGroup: boolean; }> }
+  | { kind: 'raw'; raw: string };
+
+const parseFilterCondition = (raw: string): ParsedFilterCondition => {
+  if (!raw) {
+    return { kind: 'raw', raw: '' };
+  }
+
+  const trimmed = raw.trim();
+
+  if (typeof window !== 'undefined' && trimmed.startsWith('<filter_condition')) {
+    try {
+      const parser = new window.DOMParser();
+      const doc = parser.parseFromString(trimmed, 'application/xml');
+      if (!doc.querySelector('parsererror')) {
+        const root = doc.documentElement;
+        const summary = Array.from(root.childNodes)
+          .filter(node => node.nodeType === Node.TEXT_NODE)
+          .map(node => node.textContent?.trim() || '')
+          .filter(Boolean)
+          .join('\n');
+        const items = Array.from(root.getElementsByTagName('item')).map(item => ({
+          field: item.getAttribute('field') || '',
+          operator: item.getAttribute('operator') || '',
+          value: item.getAttribute('value') || '',
+          logical: item.getAttribute('or') === 'true' ? 'OR' : 'AND',
+          isEnd: item.getAttribute('endquery') === 'true',
+          isNewGroup: item.getAttribute('newquery') === 'true'
+        }));
+        return {
+          kind: 'xml',
+          table: root.getAttribute('table') || undefined,
+          summary,
+          items
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to parse filter condition XML', error);
+    }
+  }
+
+  if (trimmed.includes('^')) {
+    return { kind: 'raw', raw: trimmed.replace(/\^/g, '\n') };
+  }
+
+  return { kind: 'raw', raw: trimmed };
+};
+
+const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
+  const parsed = useMemo(() => parseFilterCondition(value), [value]);
+
+  if (!value.trim()) {
+    return <p className="text-slate-500 italic">No filter condition provided.</p>;
+  }
+
+  if (parsed.kind === 'xml') {
+    return (
+      <div className="space-y-2">
+        {parsed.table && (
+          <div className="text-xs uppercase tracking-wide text-slate-400">
+            Table: <span className="text-blue-300 font-mono">{parsed.table}</span>
+          </div>
+        )}
+        {parsed.summary && (
+          <pre className="bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-300 whitespace-pre-wrap">
+            {parsed.summary}
+          </pre>
+        )}
+        <div className="space-y-2">
+          {parsed.items.map((item, idx) => (
+            <div
+              key={idx}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
+            >
+              {idx > 0 && (
+                <span className="text-xs text-slate-400">{item.logical}</span>
+              )}
+              <span className="font-semibold text-blue-200">{item.field || '(group)'}</span>
+              {item.operator && <span className="text-slate-400">{item.operator}</span>}
+              {item.value && <span className="text-emerald-200">{item.value}</span>}
+              {item.isNewGroup && <span className="text-xs text-amber-300">New group</span>}
+              {item.isEnd && <span className="text-xs text-slate-500">End</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <pre className="bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 whitespace-pre-wrap">
+      {parsed.raw}
+    </pre>
+  );
+};
+
 export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: SnippetModalProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -24,6 +121,11 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
     when: snippet.when || '',
     order: snippet.order !== undefined ? String(snippet.order) : '',
     priority: snippet.priority !== undefined ? String(snippet.priority) : '',
+    filter_condition: snippet.filter_condition || '',
+    runsOnInsert: snippet.action_insert ? 'true' : 'false',
+    runsOnUpdate: snippet.action_update ? 'true' : 'false',
+    runsOnDelete: snippet.action_delete ? 'true' : 'false',
+    runsOnQuery: snippet.action_query ? 'true' : 'false',
     tags: [...snippet.tags],
     // Service Portal Widget specific fields
     html: snippet.html || '',
@@ -48,6 +150,11 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
       when: snippet.when || '',
       order: snippet.order !== undefined ? String(snippet.order) : '',
       priority: snippet.priority !== undefined ? String(snippet.priority) : '',
+      filter_condition: snippet.filter_condition || '',
+      runsOnInsert: snippet.action_insert ? 'true' : 'false',
+      runsOnUpdate: snippet.action_update ? 'true' : 'false',
+      runsOnDelete: snippet.action_delete ? 'true' : 'false',
+      runsOnQuery: snippet.action_query ? 'true' : 'false',
       tags: [...snippet.tags],
       // Service Portal Widget specific fields
       html: snippet.html || '',
@@ -75,6 +182,19 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
     return Number.isFinite(parsed) ? parsed : undefined;
   };
 
+  const formatBooleanFlag = (value?: boolean | string) => {
+    if (value === true || value === 'true' || value === 1 || value === '1') return 'Yes';
+    if (value === false || value === 'false' || value === 0 || value === '0') return 'No';
+    return 'Not set';
+  };
+
+  const actionOptions = [
+    { key: 'runsOnInsert', field: 'action_insert' as const, label: 'Insert' },
+    { key: 'runsOnUpdate', field: 'action_update' as const, label: 'Update' },
+    { key: 'runsOnDelete', field: 'action_delete' as const, label: 'Delete' },
+    { key: 'runsOnQuery', field: 'action_query' as const, label: 'Query' }
+  ] as const;
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(snippet.script);
     setCopied(true);
@@ -91,6 +211,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
         description: editData.description,
         collection: editData.collection,
         condition: editData.condition,
+        filter_condition: editData.filter_condition,
         tags: editData.tags
       };
 
@@ -106,6 +227,13 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
       const priorityValue = parseNumericInput(editData.priority);
       if (priorityValue !== undefined) {
         updates.priority = priorityValue;
+      }
+
+      if (snippet.artifact_type === 'business_rule') {
+        updates.action_insert = editData.runsOnInsert === 'true';
+        updates.action_update = editData.runsOnUpdate === 'true';
+        updates.action_delete = editData.runsOnDelete === 'true';
+        updates.action_query = editData.runsOnQuery === 'true';
       }
 
       // Add artifact-specific fields
@@ -209,6 +337,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
         description: description, // Use the passed description
         collection: editData.collection,
         condition: editData.condition,
+        filter_condition: editData.filter_condition,
         tags: editData.tags
       };
 
@@ -224,6 +353,13 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
       const priorityValue = parseNumericInput(editData.priority);
       if (priorityValue !== undefined) {
         updates.priority = priorityValue;
+      }
+
+      if (snippet.artifact_type === 'business_rule') {
+        updates.action_insert = editData.runsOnInsert === 'true';
+        updates.action_update = editData.runsOnUpdate === 'true';
+        updates.action_delete = editData.runsOnDelete === 'true';
+        updates.action_query = editData.runsOnQuery === 'true';
       }
 
       // Add artifact-specific fields
@@ -344,6 +480,11 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
                       when: snippet.when || '',
                       order: snippet.order !== undefined ? String(snippet.order) : '',
                       priority: snippet.priority !== undefined ? String(snippet.priority) : '',
+                      filter_condition: snippet.filter_condition || '',
+                      runsOnInsert: snippet.action_insert ? 'true' : 'false',
+                      runsOnUpdate: snippet.action_update ? 'true' : 'false',
+                      runsOnDelete: snippet.action_delete ? 'true' : 'false',
+                      runsOnQuery: snippet.action_query ? 'true' : 'false',
                       tags: [...snippet.tags],
                       html: snippet.html || '',
                       css: snippet.css || '',
@@ -576,7 +717,66 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
                 )}
               </div>
             )}
+
+            {snippet.artifact_type === 'business_rule' && (
+              <div className="md:col-span-2">
+                <h4 className="text-sm font-medium text-slate-300 mb-2">Actions</h4>
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-3">
+                    {actionOptions.map(option => {
+                      const checked = editData[option.key] === 'true';
+                      return (
+                        <label
+                          key={option.key}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${checked ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-100' : 'border-white/20 bg-white/5 text-slate-300'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-emerald-500"
+                            checked={checked}
+                            onChange={(e) => setEditData(prev => ({ ...prev, [option.key]: e.target.checked ? 'true' : 'false' }))}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {actionOptions.map(option => {
+                      const active = snippet[option.field];
+                      return (
+                        <span
+                          key={option.field}
+                          className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${active ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200' : 'border-white/20 bg-white/5 text-slate-400'}`}
+                        >
+                          {active ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          <span>{option.label}: {formatBooleanFlag(active)}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
+        {snippet.artifact_type === 'business_rule' && (snippet.filter_condition || (isEditing && editData.filter_condition)) && (
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold text-white mb-3">Filter Condition</h4>
+            {isEditing ? (
+              <textarea
+                value={editData.filter_condition}
+                onChange={(e) => setEditData(prev => ({ ...prev, filter_condition: e.target.value }))}
+                className="w-full px-4 py-3 bg-slate-800/50 border border-white/20 rounded-lg text-slate-200 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={4}
+                placeholder="Filter condition expression or XML"
+              />
+            ) : (
+              <FilterConditionDisplay value={snippet.filter_condition || ''} />
+            )}
+          </div>
+        )}
 
           {(snippet.condition || isEditing) && (
             <div className="mb-6">
@@ -778,3 +978,4 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
     </div>
   );
 }
+

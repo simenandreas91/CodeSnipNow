@@ -18,6 +18,7 @@ export function useSnippets() {
   }, [currentPage, searchQuery, selectedArtifactType]);
 
   const mapDatabaseToSnippet = (data: any[], artifactType: string): Snippet[] => {
+    const normalizeFlag = (value: any) => value === true || value === 'true' || value === 1 || value === '1';
     return data.map((item: any) => ({
       id: String(item.id),
       name: item.title || '',
@@ -27,9 +28,14 @@ export function useSnippets() {
       subtype: ['integrations', 'core_servicenow_apis', 'specialized_areas'].includes(artifactType) ? item.type : undefined,
       collection: item.collection || item.table_name || '',
       condition: item.condition || '',
+      filter_condition: item.filter_condition || '',
       when: item.when_to_run || item.script_type || '',
       order: item.order_value || 100,
       priority: item.priority || 100,
+      action_insert: normalizeFlag(item.action_insert),
+      action_update: normalizeFlag(item.action_update),
+      action_delete: normalizeFlag(item.action_delete),
+      action_query: normalizeFlag(item.action_query),
       active: item.active !== false,
       advanced: item.advanced || false,
       field_name: item.field_name || '',
@@ -340,8 +346,13 @@ export function useSnippets() {
               collection: data.collection,
               when_to_run: data.when,
               condition: data.condition,
+              filter_condition: data.filter_condition,
               order_value: data.order,
               priority: data.priority,
+              action_insert: data.action_insert,
+              action_update: data.action_update,
+              action_delete: data.action_delete,
+              action_query: data.action_query,
               active: data.active,
               advanced: data.advanced
             };
@@ -499,6 +510,23 @@ export function useSnippets() {
 
         if (updates.priority !== undefined && updates.artifact_type === 'business_rule') {
           updateData.priority = updates.priority;
+        }
+
+        if (updates.filter_condition !== undefined && updates.artifact_type === 'business_rule') {
+          updateData.filter_condition = updates.filter_condition;
+        }
+
+        if (updates.action_insert !== undefined && updates.artifact_type === 'business_rule') {
+          updateData.action_insert = updates.action_insert;
+        }
+        if (updates.action_update !== undefined && updates.artifact_type === 'business_rule') {
+          updateData.action_update = updates.action_update;
+        }
+        if (updates.action_delete !== undefined && updates.artifact_type === 'business_rule') {
+          updateData.action_delete = updates.action_delete;
+        }
+        if (updates.action_query !== undefined && updates.artifact_type === 'business_rule') {
+          updateData.action_query = updates.action_query;
         }
         
         if (updates.condition) updateData.condition = updates.condition;
