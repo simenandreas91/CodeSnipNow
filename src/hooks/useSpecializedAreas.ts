@@ -4,6 +4,16 @@ import type { SpecializedArea, SpecializedAreaSubtype } from '../types/snippet';
 
 const ITEMS_PER_PAGE = 12;
 
+type SpecializedAreaUpdates = Partial<{
+  title: string;
+  description: string;
+  code: string;
+  code2: string | null;
+  type: SpecializedAreaSubtype | null;
+  repo_path: string | null;
+  is_public: boolean;
+}>;
+
 export function useSpecializedAreas() {
   const [specializedAreas, setSpecializedAreas] = useState<SpecializedArea[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,8 +33,8 @@ export function useSpecializedAreas() {
     fetchSubtypes(viewMySpecializedAreas);
   }, [viewMySpecializedAreas]);
 
-  const mapDatabaseToSpecializedArea = (data: any[]): SpecializedArea[] => {
-    return data.map((item: any) => ({
+  const mapDatabaseToSpecializedArea = (data: any[]): SpecializedArea[] =>
+    data.map((item: any) => ({
       id: String(item.id),
       title: item.title,
       description: item.description || undefined,
@@ -37,7 +47,6 @@ export function useSpecializedAreas() {
       created_at: item.created_at,
       updated_at: item.updated_at || item.created_at
     }));
-  };
 
   const fetchSubtypes = async (mySpecializedAreas = false) => {
     setSubtypesLoading(true);
@@ -45,36 +54,30 @@ export function useSpecializedAreas() {
     try {
       if (!hasValidSupabaseCredentials || !supabase) {
         setAvailableSubtypes([]);
-        setSubtypesLoading(false);
         return;
       }
 
       const { data: { user } } = await supabase.auth.getUser();
       if (mySpecializedAreas && !user) {
         setAvailableSubtypes([]);
-        setSubtypesLoading(false);
         return;
       }
 
-      let queryBuilder = supabase
-        .from('specialized_areas')
-        .select('type');
-
-      if (mySpecializedAreas) {
-        queryBuilder = queryBuilder.eq('author_id', user?.id);
-      } else {
-        queryBuilder = queryBuilder.eq('is_public', true);
-      }
+      let queryBuilder = supabase.from('specialized_areas').select('type');
+      queryBuilder = mySpecializedAreas
+        ? queryBuilder.eq('author_id', user?.id)
+        : queryBuilder.eq('is_public', true);
 
       const { data, error } = await queryBuilder;
 
       if (error) {
         console.error('Error fetching specialized area subtypes:', error);
         setAvailableSubtypes([]);
-      } else {
-        const types = [...new Set((data || []).map((item: any) => item.type).filter(Boolean))].sort();
-        setAvailableSubtypes(types);
+        return;
       }
+
+      const types = [...new Set((data || []).map((item: any) => item.type).filter(Boolean))].sort();
+      setAvailableSubtypes(types);
     } catch (error) {
       console.error('Error in fetchSubtypes:', error);
       setAvailableSubtypes([]);
@@ -96,17 +99,13 @@ export function useSpecializedAreas() {
         console.log('Supabase not configured');
         setSpecializedAreas([]);
         setTotalCount(0);
-        setLoading(false);
         return;
       }
-
-      console.log(`Fetching specialized areas - Page: ${page}, Query: ${query}, Subtype: ${subtype}, My: ${mySpecializedAreas}`);
 
       const { data: { user } } = await supabase.auth.getUser();
       if (mySpecializedAreas && !user) {
         setSpecializedAreas([]);
         setTotalCount(0);
-        setLoading(false);
         return;
       }
 
@@ -115,20 +114,17 @@ export function useSpecializedAreas() {
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
 
-      if (mySpecializedAreas) {
-        queryBuilder = queryBuilder.eq('author_id', user?.id);
-      } else {
-        queryBuilder = queryBuilder.eq('is_public', true);
-      }
+      queryBuilder = mySpecializedAreas
+        ? queryBuilder.eq('author_id', user?.id)
+        : queryBuilder.eq('is_public', true);
 
       if (subtype) {
         queryBuilder = queryBuilder.eq('type', subtype);
       }
 
       if (query.trim()) {
-        const formattedQuery = `%${query.trim()}%`;
         queryBuilder = queryBuilder.or(
-          `title.ilike.${formattedQuery},description.ilike.${formattedQuery},code.ilike.${formattedQuery},code2.ilike.${formattedQuery}`
+          `title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%,code2.ilike.%${query}%`
         );
       }
 
@@ -142,8 +138,17 @@ export function useSpecializedAreas() {
         return;
       }
 
-      setSpecializedAreas(mapDatabaseToSpecializedArea(data || []));
-      setTotalCount(count || 0);
+      const mappedData = mapDatabaseToSpecializedArea(data || []);
+      const resolvedCount = count || 0;
+
+      setTotalCount(resolvedCount);
+
+      if (mappedData.length === 0 && resolvedCount > 0 && page > 1) {
+        setCurrentPage(prev => Math.max(prev - 1, 1));
+        return;
+      }
+
+      setSpecializedAreas(mappedData);
     } catch (error) {
       console.error('Error in fetchSpecializedAreas:', error);
       setSpecializedAreas([]);
@@ -153,15 +158,18 @@ export function useSpecializedAreas() {
     }
   };
 
-  const createSpecializedArea = async (data: {
-    title: string;
-    description?: string;
-    code: string;
-    code2?: string;
-    type: SpecializedAreaSubtype;
-    repo_path?: string;
-    is_public?: boolean;
-  }, userId?: string) => {
+  const createSpecializedArea = async (
+    data: {
+      title: string;
+      description?: string;
+      code: string;
+      code2?: string;
+      type: SpecializedAreaSubtype | null;
+      repo_path?: string;
+      is_public?: boolean;
+    },
+    userId?: string
+  ) => {
     if (!hasValidSupabaseCredentials || !supabase) {
       throw new Error('Database not configured');
     }
@@ -189,7 +197,6 @@ export function useSpecializedAreas() {
         throw new Error(`Failed to create specialized area: ${error.message}`);
       }
 
-      console.log('Specialized area created successfully:', result);
       fetchSubtypes(viewMySpecializedAreas);
       return result.id;
     } catch (error: any) {
@@ -198,15 +205,58 @@ export function useSpecializedAreas() {
     }
   };
 
-  const updateSpecializedArea = async (specializedAreaId: string, updates: Partial<{
-    title: string;
-    description: string;
-    code: string;
-    code2: string;
-    type: SpecializedAreaSubtype;
-    repo_path: string;
-    is_public: boolean;
-  }>) => {
+  const updateSpecializedArea = async (
+    specializedAreaId: string,
+    updates: SpecializedAreaUpdates
+  ) => {
+    if (!hasValidSupabaseCredentials || !supabase) {
+      throw new Error('Database not configured');
+    }
+
+    try {
+      const sanitizedUpdates: SpecializedAreaUpdates = { ...updates };
+
+      if (typeof sanitizedUpdates.code2 === 'string' && sanitizedUpdates.code2.trim() === '') {
+        sanitizedUpdates.code2 = null;
+      }
+      if (typeof sanitizedUpdates.repo_path === 'string' && sanitizedUpdates.repo_path.trim() === '') {
+        sanitizedUpdates.repo_path = null;
+      }
+      if (typeof sanitizedUpdates.type === 'string') {
+        const trimmedTypeValue = sanitizedUpdates.type.trim();
+        sanitizedUpdates.type = trimmedTypeValue ? trimmedTypeValue : null;
+      }
+
+      const { data, error } = await supabase
+        .from('specialized_areas')
+        .update(sanitizedUpdates)
+        .eq('id', specializedAreaId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('Error updating specialized area:', error);
+        throw new Error(`Failed to update specialized area: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Failed to update specialized area: no data returned');
+      }
+
+      const [updatedSpecializedArea] = mapDatabaseToSpecializedArea([data]);
+      setSpecializedAreas(prev =>
+        prev.map(area => (area.id === specializedAreaId ? updatedSpecializedArea : area))
+      );
+
+      fetchSubtypes(viewMySpecializedAreas);
+      return updatedSpecializedArea;
+    } catch (error: any) {
+      console.error('Error in updateSpecializedArea:', error);
+      throw new Error(error.message || 'Failed to update specialized area');
+    }
+  };
+
+  const deleteSpecializedArea = async (specializedAreaId: string) => {
     if (!hasValidSupabaseCredentials || !supabase) {
       throw new Error('Database not configured');
     }
@@ -214,20 +264,33 @@ export function useSpecializedAreas() {
     try {
       const { error } = await supabase
         .from('specialized_areas')
-        .update(updates)
+        .delete()
         .eq('id', specializedAreaId);
 
       if (error) {
-        console.error('Error updating specialized area:', error);
-        throw new Error(`Failed to update specialized area: ${error.message}`);
+        console.error('Error deleting specialized area:', error);
+        throw new Error(`Failed to delete specialized area: ${error.message}`);
       }
 
-      console.log('Specialized area updated successfully');
+      setSpecializedAreas(prev => prev.filter(area => area.id !== specializedAreaId));
+      setTotalCount(prev => Math.max(prev - 1, 0));
+
+      const newTotalCount = Math.max(totalCount - 1, 0);
+      const newTotalPages = newTotalCount === 0 ? 1 : Math.ceil(newTotalCount / ITEMS_PER_PAGE);
+      const targetPage = Math.min(currentPage, newTotalPages);
+
       fetchSubtypes(viewMySpecializedAreas);
+
+      if (targetPage !== currentPage) {
+        setCurrentPage(targetPage);
+      } else {
+        await fetchSpecializedAreas(targetPage, searchQuery, selectedSubtype, viewMySpecializedAreas);
+      }
+
       return true;
     } catch (error: any) {
-      console.error('Error in updateSpecializedArea:', error);
-      throw new Error(error.message || 'Failed to update specialized area');
+      console.error('Error in deleteSpecializedArea:', error);
+      throw new Error(error.message || 'Failed to delete specialized area');
     }
   };
 
@@ -269,6 +332,7 @@ export function useSpecializedAreas() {
     handlePageChange,
     createSpecializedArea,
     updateSpecializedArea,
+    deleteSpecializedArea,
     ITEMS_PER_PAGE
   };
 }

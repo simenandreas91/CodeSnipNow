@@ -65,9 +65,9 @@ function App() {
           />
 
           {selectedArtifactType === 'integrations' ? (
-            <IntegrationsGrid />
+            <IntegrationsGrid user={user} />
           ) : selectedArtifactType === 'specialized_areas' ? (
-            <SpecializedAreasGrid />
+            <SpecializedAreasGrid user={user} />
           ) : (
             <>
               <SnippetGrid 

@@ -4,9 +4,15 @@ import { useSpecializedAreas } from '../hooks/useSpecializedAreas';
 import { IntegrationCard } from './IntegrationCard';
 import { IntegrationModal } from './IntegrationModal';
 import { Pagination } from './Pagination';
-import type { SpecializedArea, SpecializedAreaSubtype } from '../types/snippet';
+import type { SpecializedArea, SpecializedAreaSubtype, IntegrationLike } from '../types/snippet';
 
-export function SpecializedAreasGrid() {
+type GridUser = { id: string; email?: string; username?: string } | null;
+
+interface SpecializedAreasGridProps {
+  user?: GridUser;
+}
+
+export function SpecializedAreasGrid({ user }: SpecializedAreasGridProps) {
   const {
     specializedAreas,
     loading,
@@ -22,9 +28,27 @@ export function SpecializedAreasGrid() {
     handleSubtypeChange,
     handleViewMyChange,
     handlePageChange,
+    updateSpecializedArea,
+    deleteSpecializedArea,
     ITEMS_PER_PAGE
   } = useSpecializedAreas();
   const [selectedSpecializedArea, setSelectedSpecializedArea] = useState<SpecializedArea | null>(null);
+
+  const handleUpdate = async (
+    areaId: string,
+    updates: Partial<IntegrationLike>
+  ) => {
+    const updated = await updateSpecializedArea(areaId, updates);
+    if (updated) {
+      setSelectedSpecializedArea(prev => (prev && prev.id === areaId ? updated : prev));
+    }
+    return updated;
+  };
+
+  const handleDelete = async (areaId: string) => {
+    await deleteSpecializedArea(areaId);
+    setSelectedSpecializedArea(null);
+  };
 
   if (loading) {
     return (
@@ -40,7 +64,7 @@ export function SpecializedAreasGrid() {
   if (specializedAreas.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="text-6xl mb-4">🤔</div>
+        <div className="text-6xl mb-4">??</div>
         <h3 className="text-xl font-semibold text-white mb-2">No specialized areas found</h3>
         <p className="text-slate-400">Try adjusting your search or filter criteria.</p>
       </div>
@@ -56,7 +80,7 @@ export function SpecializedAreasGrid() {
             type="text"
             placeholder="Search specialized areas by title, description, or code..."
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={event => handleSearch(event.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all"
           />
         </div>
@@ -65,12 +89,12 @@ export function SpecializedAreasGrid() {
           <Filter className="h-4 w-4 text-slate-400" />
           <select
             value={selectedSubtype}
-            onChange={(e) => handleSubtypeChange(e.target.value as SpecializedAreaSubtype | '')}
+            onChange={event => handleSubtypeChange(event.target.value as SpecializedAreaSubtype | '')}
             disabled={subtypesLoading}
             className="bg-slate-700/50 border border-slate-600/50 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">All Types</option>
-            {availableSubtypes.map((subtype) => (
+            {availableSubtypes.map(subtype => (
               <option key={subtype} value={subtype}>
                 {subtype}
               </option>
@@ -97,7 +121,7 @@ export function SpecializedAreasGrid() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {specializedAreas.map((specializedArea) => (
+        {specializedAreas.map(specializedArea => (
           <IntegrationCard
             key={specializedArea.id}
             integration={specializedArea}
@@ -122,6 +146,9 @@ export function SpecializedAreasGrid() {
           integration={selectedSpecializedArea}
           onClose={() => setSelectedSpecializedArea(null)}
           entityLabel="Specialized Area"
+          user={user}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
         />
       )}
     </div>

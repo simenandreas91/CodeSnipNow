@@ -4,9 +4,15 @@ import { IntegrationCard } from './IntegrationCard';
 import { Pagination } from './Pagination';
 import { Loader2, Filter, UserCheck, Eye, Search } from 'lucide-react';
 import { IntegrationModal } from './IntegrationModal';
-import type { Integration, IntegrationSubtype } from '../types/snippet';
+import type { Integration, IntegrationSubtype, IntegrationLike } from '../types/snippet';
 
-export function IntegrationsGrid() {
+type GridUser = { id: string; email?: string; username?: string } | null;
+
+interface IntegrationsGridProps {
+  user?: GridUser;
+}
+
+export function IntegrationsGrid({ user }: IntegrationsGridProps) {
   const {
     integrations,
     loading,
@@ -22,9 +28,27 @@ export function IntegrationsGrid() {
     handleSubtypeChange,
     handleViewMyChange,
     handlePageChange,
+    updateIntegration,
+    deleteIntegration,
     ITEMS_PER_PAGE
   } = useIntegrations();
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
+
+  const handleUpdate = async (
+    integrationId: string,
+    updates: Partial<IntegrationLike>
+  ) => {
+    const updated = await updateIntegration(integrationId, updates);
+    if (updated) {
+      setSelectedIntegration(prev => (prev && prev.id === integrationId ? updated : prev));
+    }
+    return updated;
+  };
+
+  const handleDelete = async (integrationId: string) => {
+    await deleteIntegration(integrationId);
+    setSelectedIntegration(null);
+  };
 
   if (loading) {
     return (
@@ -49,31 +73,28 @@ export function IntegrationsGrid() {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
-        {/* Search Input */}
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
           <input
             type="text"
             placeholder="Search integrations by title, description, or code..."
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={event => handleSearch(event.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
           />
         </div>
 
-        {/* Subtype Filter */}
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-slate-400" />
           <select
             value={selectedSubtype}
-            onChange={(e) => handleSubtypeChange(e.target.value as IntegrationSubtype | '')}
+            onChange={event => handleSubtypeChange(event.target.value as IntegrationSubtype | '')}
             disabled={subtypesLoading}
             className="bg-slate-700/50 border border-slate-600/50 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">All Types</option>
-            {availableSubtypes.map((subtype) => (
+            {availableSubtypes.map(subtype => (
               <option key={subtype} value={subtype}>
                 {subtype}
               </option>
@@ -84,7 +105,6 @@ export function IntegrationsGrid() {
           )}
         </div>
 
-        {/* View Toggle */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => handleViewMyChange(!viewMyIntegrations)}
@@ -100,9 +120,8 @@ export function IntegrationsGrid() {
         </div>
       </div>
 
-      {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {integrations.map((integration) => (
+        {integrations.map(integration => (
           <IntegrationCard
             key={integration.id}
             integration={integration}
@@ -111,7 +130,6 @@ export function IntegrationsGrid() {
         ))}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <Pagination
           currentPage={currentPage}
@@ -126,6 +144,9 @@ export function IntegrationsGrid() {
         <IntegrationModal
           integration={selectedIntegration}
           onClose={() => setSelectedIntegration(null)}
+          user={user}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
         />
       )}
     </div>
