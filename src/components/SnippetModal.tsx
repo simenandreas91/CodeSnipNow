@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, Image as ImageIcon } from 'lucide-react';
+import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, Image as ImageIcon, ChevronDown } from 'lucide-react';
 import { renderMarkdown } from '../lib/markdown';
 import { CodeBlock } from './CodeBlock';
 import { ImageUploadModal } from './ImageUploadModal';
@@ -21,6 +21,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
     script: snippet.script,
     collection: snippet.collection || '',
     condition: snippet.condition || '',
+    when: snippet.when || '',
     tags: [...snippet.tags],
     // Service Portal Widget specific fields
     html: snippet.html || '',
@@ -42,6 +43,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
       script: snippet.script,
       collection: snippet.collection || '',
       condition: snippet.condition || '',
+      when: snippet.when || '',
       tags: [...snippet.tags],
       // Service Portal Widget specific fields
       html: snippet.html || '',
@@ -52,6 +54,14 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
   }, [snippet]);
 
   const isAdmin = user?.email === 'simenstaabyknudsen@gmail.com';
+
+  const formatWhenValue = (value?: string) => {
+    if (!value) return 'Not set';
+    if (snippet.artifact_type === 'client_script') {
+      return value.charAt(0).toUpperCase() + value.slice(1);
+    }
+    return value;
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(snippet.script);
@@ -71,7 +81,11 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
         condition: editData.condition,
         tags: editData.tags
       };
-      
+
+      if (snippet.artifact_type === 'business_rule' || snippet.artifact_type === 'client_script') {
+        updates.when = editData.when;
+      }
+
       // Add artifact-specific fields
       if (snippet.artifact_type === 'service_portal_widget') {
         updates.html = editData.html;
@@ -175,7 +189,11 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
         condition: editData.condition,
         tags: editData.tags
       };
-      
+
+      if (snippet.artifact_type === 'business_rule' || snippet.artifact_type === 'client_script') {
+        updates.when = editData.when;
+      }
+
       // Add artifact-specific fields
       if (snippet.artifact_type === 'service_portal_widget') {
         updates.html = editData.html;
@@ -291,6 +309,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
                       script: snippet.script,
                       collection: snippet.collection || '',
                       condition: snippet.condition || '',
+                      when: snippet.when || '',
                       tags: [...snippet.tags],
                       html: snippet.html || '',
                       css: snippet.css || '',
@@ -375,18 +394,32 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: Snippe
               </div>
             )}
 
-            {snippet.when && (
+            {(snippet.when || isEditing) && (
               <div className="flex items-center gap-2 text-slate-300">
                 <Clock className="h-4 w-4 text-purple-400" />
                 <span className="font-medium">
                   {snippet.artifact_type === 'business_rule' ? 'When:' : 'Script Type:'}
                 </span>
-                <span className="text-purple-300">
-                  {snippet.artifact_type === 'client_script' && snippet.when ? 
-                    snippet.when.charAt(0).toUpperCase() + snippet.when.slice(1) : 
-                    snippet.when
-                  }
-                </span>
+                {isEditing && snippet.artifact_type === 'business_rule' ? (
+                  <div className="relative">
+                    <select
+                      value={editData.when}
+                      onChange={(e) => setEditData(prev => ({ ...prev, when: e.target.value }))}
+                      className="appearance-none bg-slate-900/80 border border-purple-500/40 rounded px-3 py-2 pr-10 text-purple-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                    >
+                      <option value="" className="bg-slate-900 text-purple-100">Select timing</option>
+                      <option value="before" className="bg-slate-900 text-purple-100">Before</option>
+                      <option value="after" className="bg-slate-900 text-purple-100">After</option>
+                      <option value="async" className="bg-slate-900 text-purple-100">Async</option>
+                      <option value="display" className="bg-slate-900 text-purple-100">Display</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-200" />
+                  </div>
+                ) : (
+                  <span className="text-purple-300">
+                    {formatWhenValue(isEditing ? editData.when : snippet.when)}
+                  </span>
+                )}
               </div>
             )}
 
