@@ -1,4 +1,3 @@
-import React from 'react';
 import { Calendar, User, Tag, Code2, Clock, Zap } from 'lucide-react';
 import type { Snippet } from '../types/snippet';
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, hasValidSupabaseCredentials } from '../lib/supabase';
-import type { Snippet, CreateSnippetData, ArtifactType } from '../types/snippet';
+import type { Snippet, CreateSnippetData } from '../types/snippet';
 import { ARTIFACT_TYPES } from '../types/snippet';
 
 const ITEMS_PER_PAGE = 12;

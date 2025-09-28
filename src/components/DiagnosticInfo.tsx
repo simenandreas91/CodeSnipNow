@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase, hasValidSupabaseCredentials } from '../lib/supabase';
 
 export function DiagnosticInfo() {

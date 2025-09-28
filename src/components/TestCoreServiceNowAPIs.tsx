@@ -1,4 +1,3 @@
-import React from 'react';
 import { IntegrationCard } from './IntegrationCard';
 import type { Integration } from '../types/snippet';
 
