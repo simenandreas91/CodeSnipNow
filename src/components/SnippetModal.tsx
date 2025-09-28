@@ -293,7 +293,7 @@ const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
   );
 };
 
-export function SnippetModal({ snippet, onClose, user, onUpdateSnippet }: SnippetModalProps) {
+export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDeleteSnippet }: SnippetModalProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(() => ({
