@@ -12,9 +12,52 @@ interface SnippetModalProps {
   onUpdateSnippet?: (snippetId: string, updates: Partial<Snippet>) => Promise<void>;
 }
 
+type FilterConditionItem = {
+  field: string;
+  operator: string;
+  value: string;
+  logical: 'AND' | 'OR';
+  isEnd: boolean;
+  isNewGroup: boolean;
+};
+
 type ParsedFilterCondition =
-  | { kind: 'xml'; table?: string; summary?: string; items: Array<{ field: string; operator: string; value: string; logical: 'AND' | 'OR'; isEnd: boolean; isNewGroup: boolean; }> }
+  | { kind: 'xml'; table?: string; items: FilterConditionItem[]; summary?: string }
   | { kind: 'raw'; raw: string };
+
+const OPERATOR_LABELS: Record<string, string> = {
+  '=': 'is',
+  '!=': 'is not',
+  '>': 'greater than',
+  '<': 'less than',
+  '>=': 'greater than or equal',
+  '<=': 'less than or equal',
+  STARTSWITH: 'starts with',
+  ENDSWITH: 'ends with',
+  LIKE: 'contains',
+  'NOT LIKE': 'does not contain',
+  ISEMPTY: 'is empty',
+  'IS NOT EMPTY': 'is not empty',
+  IN: 'is one of',
+  'NOT IN': 'is not one of',
+  ON: 'on',
+  CHANGES: 'changes',
+  'CHANGES TO': 'changes to',
+  'CHANGES FROM': 'changes from',
+  VALCHANGES: 'changes',
+  EQ: 'is',
+  NE: 'is not',
+  GT: 'greater than',
+  LT: 'less than',
+  GE: 'greater than or equal',
+  LE: 'less than or equal'
+};
+
+const mapOperatorLabel = (operator: string) => {
+  if (!operator) return '';
+  const label = OPERATOR_LABELS[operator.toUpperCase() as keyof typeof OPERATOR_LABELS];
+  return label || operator;
+};
 
 const parseFilterCondition = (raw: string): ParsedFilterCondition => {
   if (!raw) {
@@ -29,11 +72,6 @@ const parseFilterCondition = (raw: string): ParsedFilterCondition => {
       const doc = parser.parseFromString(trimmed, 'application/xml');
       if (!doc.querySelector('parsererror')) {
         const root = doc.documentElement;
-        const summary = Array.from(root.childNodes)
-          .filter(node => node.nodeType === Node.TEXT_NODE)
-          .map(node => node.textContent?.trim() || '')
-          .filter(Boolean)
-          .join('\n');
         const items = Array.from(root.getElementsByTagName('item')).map(item => ({
           field: item.getAttribute('field') || '',
           operator: item.getAttribute('operator') || '',
@@ -45,17 +83,13 @@ const parseFilterCondition = (raw: string): ParsedFilterCondition => {
         return {
           kind: 'xml',
           table: root.getAttribute('table') || undefined,
-          summary,
-          items
+          items,
+          summary: (root.textContent || '').trim()
         };
       }
     } catch (error) {
       console.warn('Failed to parse filter condition XML', error);
     }
-  }
-
-  if (trimmed.includes('^')) {
-    return { kind: 'raw', raw: trimmed.replace(/\^/g, '\n') };
   }
 
   return { kind: 'raw', raw: trimmed };
@@ -69,6 +103,11 @@ const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
   }
 
   if (parsed.kind === 'xml') {
+    const items = parsed.items.filter(item => item.field || item.operator || item.value || item.isNewGroup || item.isEnd);
+    const summaryLines = parsed.summary
+      ? parsed.summary.split('^').map(segment => segment.trim()).filter(Boolean)
+      : [];
+
     return (
       <div className="space-y-2">
         {parsed.table && (
@@ -76,35 +115,65 @@ const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
             Table: <span className="text-blue-300 font-mono">{parsed.table}</span>
           </div>
         )}
-        {parsed.summary && (
-          <pre className="bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-300 whitespace-pre-wrap">
-            {parsed.summary}
-          </pre>
+        {items.length > 0 ? (
+          <div className="space-y-2">
+            {items.map((item, idx) => {
+              const label = mapOperatorLabel(item.operator);
+              const showField = Boolean(item.field);
+              const showValue = Boolean(item.value);
+              const showLabel = Boolean(label && (showField || showValue));
+              const showLogical = idx > 0 && item.logical;
+              const showTags = item.isNewGroup || item.isEnd;
+              if (!showField && !showValue && !showLabel && !showTags) {
+                return null;
+              }
+
+              return (
+                <div
+                  key={`${item.field || 'condition'}-${idx}`}
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
+                >
+                  {showLogical && <span className="text-xs text-slate-400">{item.logical}</span>}
+                  {showField && <span className="font-semibold text-blue-200">{item.field}</span>}
+                  {showLabel && <span className="text-slate-300">{label}</span>}
+                  {showValue && <span className="text-emerald-200 font-mono">{item.value}</span>}
+                  {item.isNewGroup && <span className="text-xs text-amber-300">New group</span>}
+                  {item.isEnd && <span className="text-xs text-slate-500">End</span>}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          summaryLines.length > 0 && (
+            <pre className="bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 whitespace-pre-wrap">
+              {summaryLines.join('\n')}
+            </pre>
+          )
         )}
-        <div className="space-y-2">
-          {parsed.items.map((item, idx) => (
-            <div
-              key={idx}
-              className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
-            >
-              {idx > 0 && (
-                <span className="text-xs text-slate-400">{item.logical}</span>
-              )}
-              <span className="font-semibold text-blue-200">{item.field || '(group)'}</span>
-              {item.operator && <span className="text-slate-400">{item.operator}</span>}
-              {item.value && <span className="text-emerald-200">{item.value}</span>}
-              {item.isNewGroup && <span className="text-xs text-amber-300">New group</span>}
-              {item.isEnd && <span className="text-xs text-slate-500">End</span>}
-            </div>
-          ))}
-        </div>
+      </div>
+    );
+  }
+
+  const tokens = value.split('^').map(token => token.trim()).filter(Boolean);
+
+  if (tokens.length > 0) {
+    return (
+      <div className="space-y-1">
+        {tokens.map((token, idx) => (
+          <div
+            key={idx}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-sm text-slate-200"
+          >
+            {token}
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
     <pre className="bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 whitespace-pre-wrap">
-      {parsed.raw}
+      {value}
     </pre>
   );
 };
