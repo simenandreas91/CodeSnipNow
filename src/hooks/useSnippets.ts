@@ -1,9 +1,79 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase, hasValidSupabaseCredentials } from '../lib/supabase';
 import type { Snippet, CreateSnippetData } from '../types/snippet';
 import { ARTIFACT_TYPES } from '../types/snippet';
 
 const ITEMS_PER_PAGE = 12;
+
+const CACHE_TTL_MS = 60 * 1000;
+
+const SNIPPET_SELECT_COLUMNS = [
+  'id',
+  'title',
+  'description',
+  'code',
+  'type',
+  'collection',
+  'table_name',
+  'condition',
+  'filter_condition',
+  'when_to_run',
+  'script_type',
+  'order_value',
+  'priority',
+  'action_insert',
+  'action_update',
+  'action_delete',
+  'action_query',
+  'active',
+  'advanced',
+  'field_name',
+  'global',
+  'isolate_script',
+  'applies_extended',
+  'messages',
+  'view',
+  'ui_type_code',
+  'api_name',
+  'client_callable',
+  'access_level',
+  'caller_access',
+  'mobile_callable',
+  'sandbox_callable',
+  'sys_policy',
+  'html',
+  'css',
+  'client_script',
+  'server_script',
+  'controller_as',
+  'link',
+  'demo_data',
+  'option_schema',
+  'repo_path',
+  'tags',
+  'author_id',
+  'is_public',
+  'created_at',
+  'updated_at'
+].join(', ');
+
+const PUBLIC_FILTER_EXCEPTIONS = ['mail_scripts', 'inbound_actions', 'core_servicenow_apis'];
+
+interface SnippetCacheEntry {
+  snippets: Snippet[];
+  totalCount: number;
+  timestamp: number;
+}
+
+interface FetchTableParams {
+  table: string;
+  artifactValue: string;
+  page: number;
+  query: string;
+  restrictToPage: boolean;
+  userId?: string;
+}
+
 
 export function useSnippets() {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
@@ -12,6 +82,100 @@ export function useSnippets() {
   const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedArtifactType, setSelectedArtifactType] = useState('');
+
+
+  const cacheRef = useRef<Map<string, SnippetCacheEntry>>(new Map());
+
+  const buildCacheKey = (page: number, query: string, artifactType: string) =>
+    `${artifactType || 'all'}::${page}::${query.trim().toLowerCase()}`;
+
+  const readCache = (key: string): SnippetCacheEntry | null => {
+    const entry = cacheRef.current.get(key);
+    if (!entry) {
+      return null;
+    }
+
+    if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+      cacheRef.current.delete(key);
+      return null;
+    }
+
+    return entry;
+  };
+
+  const writeCache = (key: string, data: Snippet[], total: number) => {
+    cacheRef.current.set(key, {
+      snippets: data,
+      totalCount: total,
+      timestamp: Date.now()
+    });
+  };
+
+  const invalidateCache = () => {
+    cacheRef.current.clear();
+  };
+
+
+  const fetchTableData = async ({
+    table,
+    artifactValue,
+    page,
+    query,
+    restrictToPage,
+    userId
+  }: FetchTableParams) => {
+    if (!supabase) {
+      throw new Error('Supabase client is not configured');
+    }
+
+    const trimmedQuery = query.trim();
+
+    const runQuery = (columns: string) => {
+      let builder = supabase.from(table).select(columns, { count: 'exact' });
+
+      if (userId) {
+        builder = builder.eq('author_id', userId);
+      } else if (!PUBLIC_FILTER_EXCEPTIONS.includes(table)) {
+        builder = builder.eq('is_public', true);
+      }
+
+      if (trimmedQuery) {
+        builder = builder.or(`title.ilike.%${trimmedQuery}%,description.ilike.%${trimmedQuery}%,code.ilike.%${trimmedQuery}%`);
+      }
+
+      if (restrictToPage) {
+        builder = builder
+          .order('created_at', { ascending: false })
+          .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
+      } else {
+        builder = builder.order('created_at', { ascending: false });
+      }
+
+      return builder;
+    };
+
+    let { data, error, count } = await runQuery(SNIPPET_SELECT_COLUMNS);
+
+    if (error && error.code === '42703') {
+      console.warn(`Column mismatch for ${table}, falling back to select(*)`);
+      ({ data, error, count } = await runQuery('*'));
+    }
+
+    if (error) {
+      console.error(`Error fetching ${table}:`, error);
+      return {
+        data: [],
+        count: 0,
+        artifactType: artifactValue
+      };
+    }
+
+    return {
+      data: data || [],
+      count: count || 0,
+      artifactType: artifactValue
+    };
+  };
 
   useEffect(() => {
     fetchSnippets(currentPage, searchQuery, selectedArtifactType);
@@ -74,15 +238,30 @@ export function useSnippets() {
   };
 
 
+
+
+
+
   const fetchMySnippets = async (page = 1, query = '') => {
     if (!hasValidSupabaseCredentials || !supabase) {
       setSnippets([]);
       setTotalCount(0);
+      setLoading(false);
       return;
     }
 
+    const cacheKey = buildCacheKey(page, query, 'my_snippets');
+    const cached = readCache(cacheKey);
+    if (cached) {
+      setSnippets(cached.snippets);
+      setTotalCount(cached.totalCount);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setSnippets([]);
@@ -91,150 +270,127 @@ export function useSnippets() {
       }
 
       console.log(`Fetching my snippets for user: ${user.id}`);
-      
+
+      const results = await Promise.all(
+        ARTIFACT_TYPES.map((artifactTypeConfig) =>
+          fetchTableData({
+            table: artifactTypeConfig.table,
+            artifactValue: artifactTypeConfig.value,
+            page,
+            query,
+            restrictToPage: false,
+            userId: user.id
+          })
+        )
+      );
+
       const allSnippets: Snippet[] = [];
       let totalItems = 0;
-      
-      for (const artifactType of ARTIFACT_TYPES) {
-        try {
-          // Build query for user's snippets
-          let queryBuilder = supabase
-            .from(artifactType.table)
-            .select('*', { count: 'exact' })
-            .eq('author_id', user.id);
 
-          // Apply search filter if provided
-          if (query.trim()) {
-            queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
-          }
-
-          const { data, error, count } = await queryBuilder
-            .order('created_at', { ascending: false });
-
-          if (error) {
-            console.error(`Error fetching my ${artifactType.table}:`, error);
-            continue;
-          }
-
-          totalItems += count || 0;
-          const mappedData = mapDatabaseToSnippet(data || [], artifactType.value);
-          allSnippets.push(...mappedData);
-        } catch (err) {
-          console.warn(`Error fetching my ${artifactType.table}:`, err);
-        }
+      for (const result of results) {
+        totalItems += result.count;
+        allSnippets.push(...mapDatabaseToSnippet(result.data, result.artifactType));
       }
-      
-      // Sort by created_at descending
+
       allSnippets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      // Apply pagination
-      setTotalCount(allSnippets.length);
+
       const startIndex = (page - 1) * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE;
-      setSnippets(allSnippets.slice(startIndex, endIndex));
-      
-      console.log('Successfully fetched my snippets:', allSnippets.length);
-      
+      const paginatedSnippets = allSnippets.slice(startIndex, endIndex);
+
+      setSnippets(paginatedSnippets);
+      setTotalCount(totalItems);
+      writeCache(cacheKey, paginatedSnippets, totalItems);
     } catch (error) {
       console.error('Error fetching my snippets:', error);
       setSnippets([]);
       setTotalCount(0);
+    } finally {
+      setLoading(false);
     }
   };
 
+
+
   const fetchSnippets = async (page = 1, query = '', artifactType = '') => {
+    if (artifactType === 'my_snippets') {
+      await fetchMySnippets(page, query);
+      return;
+    }
+
+    if (!hasValidSupabaseCredentials || !supabase) {
+      console.log('Supabase not configured');
+      setSnippets([]);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
+
+    const cacheKey = buildCacheKey(page, query, artifactType);
+    const cached = readCache(cacheKey);
+    if (cached) {
+      setSnippets(cached.snippets);
+      setTotalCount(cached.totalCount);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    
+
     try {
-      if (!hasValidSupabaseCredentials || !supabase) {
-        console.log('Supabase not configured');
+      console.log(`Fetching snippets - Page: ${page}, Query: ${query}, Type: ${artifactType}`);
+
+      const typeConfigs = artifactType
+        ? ARTIFACT_TYPES.filter(config => config.value === artifactType)
+        : ARTIFACT_TYPES;
+
+      if (artifactType && typeConfigs.length === 0) {
         setSnippets([]);
         setTotalCount(0);
-        setLoading(false);
         return;
       }
 
-      console.log(`Fetching snippets - Page: ${page}, Query: ${query}, Type: ${artifactType}`);
-      
-      // Handle "My Snippets" filter
-      if (artifactType === 'my_snippets') {
-        await fetchMySnippets(page, query);
-        return;
-      }
-      
-      // Fetch from all artifact tables
+      const results = await Promise.all(
+        typeConfigs.map((typeConfig) =>
+          fetchTableData({
+            table: typeConfig.table,
+            artifactValue: typeConfig.value,
+            page,
+            query,
+            restrictToPage: Boolean(artifactType)
+          })
+        )
+      );
+
       const allSnippets: Snippet[] = [];
       let totalItems = 0;
-      
-      for (const typeConfig of ARTIFACT_TYPES) {
-        try {
-          // Build query
-          let queryBuilder = supabase
-            .from(typeConfig.table)
-            .select('*', { count: 'exact' });
 
-          const publicFilterExceptions = ['mail_scripts', 'inbound_actions', 'core_servicenow_apis'];
-
-          if (!publicFilterExceptions.includes(typeConfig.table)) {
-            queryBuilder = queryBuilder.eq('is_public', true);
-          }
-
-          // Apply search filter if provided
-          if (query.trim()) {
-            queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%,code.ilike.%${query}%`);
-          }
-
-          // Apply artifact type filter if provided
-          if (artifactType === typeConfig.value) {
-            // Only fetch from this specific table
-            const { data, error, count } = await queryBuilder
-              .order('created_at', { ascending: false })
-              .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
-
-            if (error) {
-              console.error(`Error fetching ${typeConfig.table}:`, error);
-              continue;
-            }
-
-            totalItems = count || 0;
-            const mappedData = mapDatabaseToSnippet(data || [], typeConfig.value);
-            allSnippets.push(...mappedData);
-            break; // Only fetch from one table when filtering by type
-          } else if (!artifactType) {
-            // Fetch from all tables when no type filter
-            const { data, error, count } = await queryBuilder
-              .order('created_at', { ascending: false });
-
-            if (error) {
-              console.error(`Error fetching ${typeConfig.table}:`, error);
-              continue;
-            }
-
-            totalItems += count || 0;
-            const mappedData = mapDatabaseToSnippet(data || [], typeConfig.value);
-            allSnippets.push(...mappedData);
-          }
-        } catch (err) {
-          console.warn(`Error fetching ${typeConfig.table}:`, err);
+      for (const result of results) {
+        if (artifactType) {
+          totalItems = result.count;
+        } else {
+          totalItems += result.count;
         }
+
+        allSnippets.push(...mapDatabaseToSnippet(result.data, result.artifactType));
       }
-      
-      // Sort by created_at descending
+
       allSnippets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      // Apply pagination if fetching from all tables
-      if (!artifactType) {
-        setTotalCount(allSnippets.length);
-        const startIndex = (page - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        setSnippets(allSnippets.slice(startIndex, endIndex));
-      } else {
-        setTotalCount(totalItems);
-        setSnippets(allSnippets);
-      }
-      
-      console.log('Successfully fetched snippets:', allSnippets.length, 'Total:', totalItems);
-      
+
+      const startIndex = (page - 1) * ITEMS_PER_PAGE;
+      const endIndex = startIndex + ITEMS_PER_PAGE;
+
+      const paginatedSnippets = artifactType
+        ? allSnippets
+        : allSnippets.slice(startIndex, endIndex);
+
+      const finalTotalCount = artifactType ? totalItems : allSnippets.length;
+
+      setSnippets(paginatedSnippets);
+      setTotalCount(finalTotalCount);
+      writeCache(cacheKey, paginatedSnippets, finalTotalCount);
+
+      console.log('Successfully fetched snippets:', paginatedSnippets.length, 'Total:', finalTotalCount);
     } catch (error) {
       console.error('Error fetching snippets:', error);
       setSnippets([]);
@@ -243,6 +399,7 @@ export function useSnippets() {
       setLoading(false);
     }
   };
+
 
   const checkForDuplicate = async (data: CreateSnippetData): Promise<boolean> => {
     if (!hasValidSupabaseCredentials || !supabase) {
@@ -424,6 +581,7 @@ export function useSnippets() {
       }
 
       console.log('Snippet created successfully:', result);
+      invalidateCache();
       return result.id;
     } catch (error: any) {
       console.error('Error in insertSnippet:', error);
@@ -545,6 +703,7 @@ export function useSnippets() {
       }
 
       console.log('Snippet updated successfully');
+      invalidateCache();
       return true;
     } catch (error: any) {
       console.error('Error in updateSnippet:', error);
@@ -574,6 +733,7 @@ export function useSnippets() {
       }
 
       setSnippets(prev => prev.filter(snippet => snippet.id !== snippetId));
+      invalidateCache();
       setTotalCount(prev => Math.max(prev - 1, 0));
 
       return true;
