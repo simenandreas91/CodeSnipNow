@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, Image as ImageIcon, ChevronDown, Trash2, Loader2 } from 'lucide-react';
+import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, ChevronDown, Trash2, Loader2 } from 'lucide-react';
 import { renderMarkdown } from '../lib/markdown';
 import { CodeBlock } from './CodeBlock';
-import { ImageUploadModal } from './ImageUploadModal';
 import type { Snippet } from '../types/snippet';
 
 interface SnippetModalProps {
@@ -320,9 +319,6 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [tagInput, setTagInput] = useState('');
-  const [showImageUpload, setShowImageUpload] = useState(false);
-  const [insertPosition, setInsertPosition] = useState<number | null>(null);
-  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Update editData when snippet prop changes
   useEffect(() => {
@@ -474,137 +470,8 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     }));
   };
 
-  const handleImageUploaded = (url: string, path: string) => {
-    const markdownImage = `![Image](${url})`;
-    
-    // Check if there's an "alt text" placeholder to replace
-    const currentDescription = editData.description;
-    const altTextPattern = /!\[alt text\]\([^)]*\)/;
-    
-    let newDescription = currentDescription;
-    
-    if (altTextPattern.test(currentDescription)) {
-      // Replace the first occurrence of ![alt text](...) with the new image
-      newDescription = currentDescription.replace(altTextPattern, markdownImage);
-    } else if (insertPosition !== null) {
-      // Insert at specific position if set
-      newDescription = 
-        currentDescription.substring(0, insertPosition) + 
-        markdownImage + 
-        currentDescription.substring(insertPosition);
-      
-      setInsertPosition(null);
-    } else {
-      // Fallback: append to end
-      newDescription = currentDescription + '\n\n' + markdownImage;
-    }
-    
-    // Update the edit data immediately
-    setEditData(prev => ({
-      ...prev,
-      description: newDescription
-    }));
-    
-    // Also copy to clipboard for convenience
-    navigator.clipboard.writeText(markdownImage);
-    
-    console.log('Image uploaded and added to description:', markdownImage);
-    
-    // Auto-save the changes immediately and show feedback
-    setTimeout(async () => {
-      if (onUpdateSnippet) {
-        try {
-          await handleSaveWithDescription(newDescription);
-          setUploadMessage({ type: 'success', text: 'Image uploaded and saved successfully!' });
-        } catch (error) {
-          console.error('Failed to save after image upload:', error);
-          setUploadMessage({ type: 'error', text: 'Image uploaded but failed to save. Please save manually.' });
-        }
-      } else {
-        setUploadMessage({ type: 'success', text: 'Image uploaded successfully!' });
-      }
-      
-      // Clear message after 5 seconds
-      setTimeout(() => setUploadMessage(null), 5000);
-    }, 50);
-  };
 
-  const handleSaveWithDescription = async (description: string) => {
-    if (!onUpdateSnippet) return;
-    
-    setSaving(true);
-    try {
-      const updates: any = {
-        name: editData.name,
-        description: description, // Use the passed description
-        collection: editData.collection,
-        condition: editData.condition,
-        filter_condition: editData.filter_condition,
-        tags: editData.tags
-      };
 
-      if (snippet.artifact_type === 'business_rule' || snippet.artifact_type === 'client_script') {
-        updates.when = editData.when;
-      }
-
-      const orderValue = parseNumericInput(editData.order);
-      if (orderValue !== undefined) {
-        updates.order = orderValue;
-      }
-
-      const priorityValue = parseNumericInput(editData.priority);
-      if (priorityValue !== undefined) {
-        updates.priority = priorityValue;
-      }
-
-      if (snippet.artifact_type === 'business_rule') {
-        updates.action_insert = editData.runsOnInsert === 'true';
-        updates.action_update = editData.runsOnUpdate === 'true';
-        updates.action_delete = editData.runsOnDelete === 'true';
-        updates.action_query = editData.runsOnQuery === 'true';
-      }
-
-      // Add artifact-specific fields
-      if (snippet.artifact_type === 'service_portal_widget') {
-        updates.html = editData.html;
-        updates.css = editData.css;
-        updates.client_script = editData.client_script;
-        updates.server_script = editData.server_script;
-      } else {
-        updates.script = editData.script;
-      }
-      
-      await onUpdateSnippet(snippet.id, updates);
-      console.log('Auto-saved snippet after image upload');
-      return true; // Indicate success
-    } catch (error) {
-      console.error('Failed to auto-save after image upload:', error);
-      throw error; // Re-throw to be caught by caller
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDescriptionClick = (e: React.MouseEvent) => {
-    if (!isEditing) {
-      // When not editing, clicking on the description sets insertion point
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const textContent = editData.description;
-        
-        // Try to find approximate position in the text
-        // This is a simplified approach - in a real implementation you'd want more sophisticated text position mapping
-        const clickedText = selection.toString();
-        if (clickedText) {
-          const position = textContent.indexOf(clickedText);
-          if (position !== -1) {
-            setInsertPosition(position);
-          }
-        }
-      }
-    }
-  };
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-slate-900/95 backdrop-blur-sm border border-white/20 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -650,15 +517,6 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                 title="Edit snippet"
               >
                 <Edit className="h-5 w-5" />
-              </button>
-            )}
-            {user && onUpdateSnippet && !isEditing && (
-              <button
-                onClick={() => setShowImageUpload(true)}
-                className="p-2 text-green-400 hover:text-green-300 transition-colors"
-                title="Upload image"
-              >
-                <ImageIcon className="h-5 w-5" />
               </button>
             )}
             {isAdmin && onDeleteSnippet && !isEditing && (
@@ -737,8 +595,6 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
             ) : (
               <div 
                 className="text-slate-300 text-lg leading-relaxed prose prose-invert prose-slate max-w-none"
-                onClick={handleDescriptionClick}
-                style={{ cursor: !isEditing ? 'pointer' : 'default' }}
               >
                 <div
                   dangerouslySetInnerHTML={{ 
@@ -748,24 +604,6 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
               </div>
             )}
           </div>
-
-          {/* Upload feedback message */}
-          {uploadMessage && (
-            <div className={`mb-6 p-4 rounded-lg border ${
-              uploadMessage.type === 'success' 
-                ? 'bg-green-500/20 border-green-500/30 text-green-200' 
-                : 'bg-red-500/20 border-red-500/30 text-red-200'
-            }`}>
-              <div className="flex items-center gap-2">
-                {uploadMessage.type === 'success' ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <X className="h-4 w-4" />
-                )}
-                <span>{uploadMessage.text}</span>
-              </div>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {(snippet.collection || isEditing) && (
@@ -1184,14 +1022,6 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
           </div>
         </div>
       </div>
-
-      {showImageUpload && user && (
-        <ImageUploadModal
-          onClose={() => setShowImageUpload(false)}
-          onImageUploaded={handleImageUploaded}
-          userId={user.id}
-        />
-      )}
     </div>
   );
 }
