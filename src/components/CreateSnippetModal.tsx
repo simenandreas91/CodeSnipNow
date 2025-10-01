@@ -72,6 +72,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     onclick: '',
     hint: '',
     comments: '',
+    client: false,
   });
 
   const [tagInput, setTagInput] = useState('');
@@ -453,15 +454,15 @@ const renderArtifactFields = (): React.ReactNode => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Access Level
+                Accessible from
               </label>
               <select
                 value={formData.access_level || 'package_private'}
                 onChange={(e) => setFormData(prev => ({ ...prev, access_level: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="package_private" className="bg-slate-800">Package Private</option>
-                <option value="public" className="bg-slate-800">Public</option>
+                <option value="package_private" className="bg-slate-800">This application scope only</option>
+                <option value="public" className="bg-slate-800">All application scopes</option>
               </select>
             </div>
             <div>
@@ -558,6 +559,15 @@ const renderArtifactFields = (): React.ReactNode => {
                 className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
               />
               Active
+            </label>
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={!!formData.client}
+                onChange={handleCheckboxChange('client')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Client
             </label>
           </div>
 
@@ -775,6 +785,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
             ...baseData,
             access_level: extractValue('access') === 'public' ? 'public' : 'package_private',
             client_callable: extractValue('client_callable') === 'true',
+            client: extractValue('client') === 'true',  // UI Action specific field
             caller_access: extractValue('caller_access'),
             mobile_callable: extractValue('mobile_callable') === 'true',
             sandbox_callable: extractValue('sandbox_callable') === 'true',
@@ -919,7 +930,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       api_name: apiName,
       access_level: submissionData.access_level || 'package_private',
       caller_access: submissionData.caller_access?.trim() || '',
-      client_callable: !!submissionData.client_callable,
+      client: !!submissionData.client,
       active: submissionData.active !== false,
     };
   }
@@ -943,6 +954,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       show_update: !!submissionData.show_update,
       show_query: !!submissionData.show_query,
       show_multiple_update: !!submissionData.show_multiple_update,
+      client: !!submissionData.client,
     };
   }
 

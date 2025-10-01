@@ -50,6 +50,7 @@ export interface Snippet {
   option_schema: any;
   repo_path: string;
   tags: string[];
+  client?: boolean;  // UI Action specific field
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -115,6 +116,7 @@ export interface CreateSnippetData {
   show_update?: boolean;
   show_query?: boolean;
   show_multiple_update?: boolean;
+  client?: boolean;  // UI Action specific field
   client_script_v2?: boolean;
   onclick?: string;
   hint?: string;
