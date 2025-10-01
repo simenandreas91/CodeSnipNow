@@ -668,7 +668,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                 <span className="text-cyan-300">
                   {snippet.ui_type_code === 10 ? 'Desktop (10)' : 
                    snippet.ui_type_code === 1 ? 'Mobile (1)' : 
-                   'Both (0)'}
+                   'All (0)'}
                 </span>
               </div>
             )}

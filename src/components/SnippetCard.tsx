@@ -130,7 +130,7 @@ export function SnippetCard({ snippet, onClick }: SnippetCardProps) {
       {snippet.ui_type_code !== undefined && snippet.artifact_type === 'client_script' && (
         <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
           <Clock className="h-3 w-3" />
-          <span>UI: {snippet.ui_type_code === 10 ? 'Desktop' : snippet.ui_type_code === 1 ? 'Mobile' : 'Both'}</span>
+          <span>UI: {snippet.ui_type_code === 10 ? 'Desktop' : snippet.ui_type_code === 1 ? 'Mobile' : 'All'}</span>
         </div>
       )}
 

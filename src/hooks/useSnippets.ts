@@ -532,8 +532,11 @@ export function useSnippets() {
             break;
           case 'script_include':
             specificData = {
-              api_name: data.name.replace(/\s+/g, ''),
-              active: data.active
+              api_name: (data.api_name?.trim() || data.name.replace(/\s+/g, '')),
+              active: data.active,
+              access_level: data.access_level || 'package_private',
+              caller_access: data.caller_access || '',
+              client_callable: data.client_callable || false
             };
             break;
           case 'ui_action':
@@ -542,7 +545,18 @@ export function useSnippets() {
               action_name: data.name,
               condition: data.condition,
               order_value: data.order,
-              active: data.active
+              active: data.active,
+              hint: data.hint,
+              onclick: data.onclick,
+              form_button: data.form_button || false,
+              form_context_menu: data.form_context_menu || false,
+              form_link: data.form_link || false,
+              list_button: data.list_button || false,
+              list_context_menu: data.list_context_menu || false,
+              show_insert: data.show_insert || false,
+              show_update: data.show_update || false,
+              show_query: data.show_query || false,
+              show_multiple_update: data.show_multiple_update || false
             };
             break;
           case 'scheduled_job':

@@ -33,23 +33,662 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     action_query: false,
     active: true,
     advanced: false,
+    field_name: '',
+    global: false,
+    isolate_script: true,
+    applies_extended: false,
+    messages: '',
+    order_value: 100,
+    view: '',
+    ui_type_code: 0,
     tags: [],
     html: '',
     css: '',
     server_script: '',
     client_script: '',
+    api_name: '',
+    client_callable: false,
     option_schema: {},
     demo_data: {},
-    access_level: '',
+    access_level: 'package_private',
     caller_access: '',
     mobile_callable: false,
     sandbox_callable: false,
     sys_policy: '',
+    form_button: false,
+    form_action: false,
+    form_context_menu: false,
+    form_link: false,
+    form_menu_button: false,
+    list_button: false,
+    list_action: false,
+    list_choice: false,
+    list_context_menu: false,
+    list_banner_button: false,
+    show_insert: false,
+    show_update: false,
+    show_query: false,
+    show_multiple_update: false,
+    onclick: '',
+    hint: '',
+    comments: '',
   });
 
   const [tagInput, setTagInput] = useState('');
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCheckboxChange = (field: keyof CreateSnippetData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { checked } = e.target;
+    setFormData(prev => ({ ...prev, [field]: checked }));
+  };
+
+  const renderScriptTextarea = (label: string, placeholder: string, required = true, rows = 10) => (
+    <div>
+      <label className="block text-sm font-medium text-slate-300 mb-2">
+        {label}
+      </label>
+      <textarea
+        value={formData.script}
+        onChange={(e) => setFormData(prev => ({ ...prev, script: e.target.value }))}
+        className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder={placeholder}
+        rows={rows}
+        required={required}
+      />
+    </div>
+  );
+
+
+  
+const renderArtifactFields = (): React.ReactNode => {
+  switch (formData.artifact_type) {
+    case 'client_script':
+      return (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Application
+              </label>
+              <input
+                type="text"
+                value="Global"
+                readOnly
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Scoped to the Global application by default.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-4 md:justify-end">
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={formData.active !== false}
+                  onChange={handleCheckboxChange('active')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Active
+              </label>
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.applies_extended}
+                  onChange={handleCheckboxChange('applies_extended')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Inherited
+              </label>
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.global}
+                  onChange={handleCheckboxChange('global')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Global
+              </label>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Table *
+              </label>
+              <input
+                type="text"
+                value={formData.collection || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="User [sys_user]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                UI Type
+              </label>
+              <select
+                value={formData.ui_type_code ?? 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, ui_type_code: parseInt(e.target.value, 10) }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={0} className="bg-slate-800">All</option>
+                <option value={10} className="bg-slate-800">Desktop</option>
+                <option value={1} className="bg-slate-800">Mobile</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Type *
+              </label>
+              <select
+                value={formData.when || 'onLoad'}
+                onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="onLoad" className="bg-slate-800">onLoad</option>
+                <option value="onChange" className="bg-slate-800">onChange</option>
+                <option value="onSubmit" className="bg-slate-800">onSubmit</option>
+                <option value="onCellEdit" className="bg-slate-800">onCellEdit</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Field Name
+              </label>
+              <input
+                type="text"
+                value={formData.field_name || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, field_name: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="leave blank unless Type is onChange"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                View
+              </label>
+              <input
+                type="text"
+                value={formData.view || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, view: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., Default view"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Order
+              </label>
+              <input
+                type="number"
+                value={formData.order_value ?? 100}
+                onChange={(e) => setFormData(prev => ({ ...prev, order_value: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="100"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Condition
+            </label>
+            <input
+              type="text"
+              value={formData.condition || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
+              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Optional script condition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Messages
+            </label>
+            <textarea
+              value={formData.messages || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, messages: e.target.value }))}
+              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Optional UI messages to display"
+              rows={3}
+            />
+          </div>
+
+          {renderScriptTextarea('Script *', 'function onLoad() {\n  // Client script\n}')}
+
+          <div className="flex flex-wrap gap-4">
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={formData.isolate_script !== false}
+                onChange={handleCheckboxChange('isolate_script')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Isolate script
+            </label>
+          </div>
+        </>
+      );
+    case 'business_rule':
+      return (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Table *
+              </label>
+              <input
+                type="text"
+                value={formData.collection || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Incident [incident]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                When *
+              </label>
+              <select
+                value={formData.when || 'before'}
+                onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="before" className="bg-slate-800">Before</option>
+                <option value="after" className="bg-slate-800">After</option>
+                <option value="async" className="bg-slate-800">Async</option>
+                <option value="display" className="bg-slate-800">Display</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Order
+              </label>
+              <input
+                type="number"
+                value={formData.order ?? 100}
+                onChange={(e) => setFormData(prev => ({ ...prev, order: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Filter Condition (encoded query)
+              </label>
+              <input
+                type="text"
+                value={formData.filter_condition || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, filter_condition: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., active=true^category=software"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={formData.active !== false}
+                onChange={handleCheckboxChange('active')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Active
+            </label>
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={!!formData.advanced}
+                onChange={handleCheckboxChange('advanced')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Advanced
+            </label>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={!!formData.action_insert}
+                onChange={handleCheckboxChange('action_insert')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Insert
+            </label>
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={!!formData.action_update}
+                onChange={handleCheckboxChange('action_update')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Update
+            </label>
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={!!formData.action_delete}
+                onChange={handleCheckboxChange('action_delete')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Delete
+            </label>
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={!!formData.action_query}
+                onChange={handleCheckboxChange('action_query')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Query
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Condition Script
+            </label>
+            <textarea
+              value={formData.condition || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
+              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="return current.active;"
+              rows={4}
+            />
+          </div>
+
+          {renderScriptTextarea('Script *', '(function executeRule(current, previous /*null when async*/ ) {\n  // Business rule logic\n})()')}
+        </>
+      );
+    case 'script_include':
+      return (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Application
+              </label>
+              <input
+                type="text"
+                value="Global"
+                readOnly
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                API Name *
+              </label>
+              <input
+                type="text"
+                value={formData.api_name || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, api_name: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="MyScriptInclude"
+                required
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Used when calling this script include.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Access Level
+              </label>
+              <select
+                value={formData.access_level || 'package_private'}
+                onChange={(e) => setFormData(prev => ({ ...prev, access_level: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="package_private" className="bg-slate-800">Package Private</option>
+                <option value="public" className="bg-slate-800">Public</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Caller Access
+              </label>
+              <input
+                type="text"
+                value={formData.caller_access || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, caller_access: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Comma separated roles (optional)"
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Restrict who can call this script include.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={formData.active !== false}
+                onChange={handleCheckboxChange('active')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Active
+            </label>
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={!!formData.client_callable}
+                onChange={handleCheckboxChange('client_callable')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Client callable
+            </label>
+          </div>
+
+          {renderScriptTextarea('Script *', 'var MyScriptInclude = Class.create({\n  initialize: function() {},\n});', true, 12)}
+        </>
+      );
+    case 'ui_action': {
+      const placementOptions: Array<{ field: keyof CreateSnippetData; label: string }> = [
+        { field: 'form_button', label: 'Form button' },
+        { field: 'form_context_menu', label: 'Form context menu' },
+        { field: 'form_link', label: 'Form link' },
+        { field: 'list_button', label: 'List button' },
+        { field: 'list_context_menu', label: 'List context menu' },
+      ];
+      const visibilityOptions: Array<{ field: keyof CreateSnippetData; label: string }> = [
+        { field: 'show_insert', label: 'Show Insert' },
+        { field: 'show_update', label: 'Show Update' },
+        { field: 'show_query', label: 'Show List (Query)' },
+        { field: 'show_multiple_update', label: 'Show Multi Update' },
+      ];
+      return (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Table *
+              </label>
+              <input
+                type="text"
+                value={formData.collection || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Incident [incident]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Order
+              </label>
+              <input
+                type="number"
+                value={formData.order ?? 100}
+                onChange={(e) => setFormData(prev => ({ ...prev, order: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="100"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            <label className="inline-flex items-center gap-2 text-slate-300">
+              <input
+                type="checkbox"
+                checked={formData.active !== false}
+                onChange={handleCheckboxChange('active')}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+              />
+              Active
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Condition
+              </label>
+              <input
+                type="text"
+                value={formData.condition || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Optional script condition"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Button hint
+              </label>
+              <input
+                type="text"
+                value={formData.hint || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, hint: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Tooltip displayed on the button"
+              />
+            </div>
+          </div>
+
+          <div>
+            <span className="block text-sm font-medium text-slate-300 mb-2">Display on</span>
+            <div className="flex flex-wrap gap-4">
+              {placementOptions.map((option) => (
+                <label key={option.field as string} className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formData[option.field])}
+                    onChange={handleCheckboxChange(option.field)}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="block text-sm font-medium text-slate-300 mb-2">Visibility</span>
+            <div className="flex flex-wrap gap-4">
+              {visibilityOptions.map((option) => (
+                <label key={option.field as string} className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formData[option.field])}
+                    onChange={handleCheckboxChange(option.field)}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Onclick (client script)
+            </label>
+            <textarea
+              value={formData.onclick || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, onclick: e.target.value }))}
+              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="gsftSubmit(null, g_form.getFormElement(), 'action_name');"
+              rows={4}
+            />
+          </div>
+
+          {renderScriptTextarea('Script *', '(function executeAction(current, previous /*null when async*/ ) {\n  // Server-side logic\n})()')}
+        </>
+      );
+    }
+    case 'service_portal_widget':
+      return null;
+    default:
+      return (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Table/Collection
+              </label>
+              <input
+                type="text"
+                value={formData.collection || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., sys_email"
+              />
+            </div>
+            <div className="flex items-center md:justify-end">
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={formData.active !== false}
+                  onChange={handleCheckboxChange('active')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Active
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Condition
+            </label>
+            <input
+              type="text"
+              value={formData.condition || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
+              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Optional condition or encoded query"
+            />
+          </div>
+
+          {renderScriptTextarea('Script *', 'Enter your code here')}
+        </>
+      );
+  }
+};
+const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -187,42 +826,143 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setOptionSchemaError('');
-    setDemoDataError('');
 
-    // Validation for widget
-    if (formData.artifact_type === 'service_portal_widget') {
-      if (!formData.html?.trim()) {
-        setError('HTML Template is required for Service Portal Widgets.');
-        return;
-      }
-      if (optionSchemaError || demoDataError) {
-        setError('Please fix JSON errors in Option Schema or Demo Data.');
-        return;
-      }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setOptionSchemaError('');
+  setDemoDataError('');
+
+  // Validation for widget
+  if (formData.artifact_type === 'service_portal_widget') {
+    if (!formData.html?.trim()) {
+      setError('HTML Template is required for Service Portal Widgets.');
+      return;
     }
-
-    setLoading(true);
-    console.log('Form submitted, creating snippet...');
-
-    try {
-      await onCreateSnippet(formData, user.id);
-      console.log('Snippet created successfully, closing modal...');
-      onClose();
-    } catch (err: any) {
-      console.error('Error creating snippet:', err);
-      const errorMessage = err.message || 'Failed to create snippet';
-      setError(errorMessage);
-      console.error('Setting error message:', errorMessage);
-    } finally {
-      setLoading(false);
-      console.log('Create snippet process completed');
+    if (optionSchemaError || demoDataError) {
+      setError('Please fix JSON errors in Option Schema or Demo Data.');
+      return;
     }
-  };
+  }
 
+  if (formData.artifact_type === 'client_script') {
+    if (!formData.collection?.trim()) {
+      setError('Table is required for Client Scripts.');
+      return;
+    }
+    if (!(formData.when?.trim())) {
+      setError('Type is required for Client Scripts.');
+      return;
+    }
+  }
+
+  if (formData.artifact_type === 'business_rule') {
+    if (!formData.collection?.trim()) {
+      setError('Table is required for Business Rules.');
+      return;
+    }
+    if (!(formData.when?.trim())) {
+      setError('When is required for Business Rules.');
+      return;
+    }
+  }
+
+  if (formData.artifact_type === 'script_include') {
+    const apiCandidate = formData.api_name?.trim() || formData.name.replace(/\s+/g, '');
+    if (!apiCandidate) {
+      setError('API Name is required for Script Includes.');
+      return;
+    }
+  }
+
+  if (formData.artifact_type === 'ui_action') {
+    if (!formData.collection?.trim()) {
+      setError('Table is required for UI Actions.');
+      return;
+    }
+  }
+
+  let submissionData: CreateSnippetData = { ...formData };
+
+  if (submissionData.artifact_type === 'client_script') {
+    submissionData = {
+      ...submissionData,
+      collection: submissionData.collection?.trim() || '',
+      when: submissionData.when?.trim() || 'onLoad',
+      order_value: submissionData.order_value ?? 100,
+      ui_type_code: submissionData.ui_type_code ?? 0,
+    };
+  }
+
+  if (submissionData.artifact_type === 'business_rule') {
+    const normalizedOrder = Number.isNaN(Number(submissionData.order)) ? 100 : Number(submissionData.order);
+    submissionData = {
+      ...submissionData,
+      collection: submissionData.collection?.trim() || '',
+      when: submissionData.when?.trim() || 'before',
+      order: normalizedOrder,
+      filter_condition: submissionData.filter_condition?.trim() || '',
+      condition: submissionData.condition?.trim() || '',
+      action_insert: !!submissionData.action_insert,
+      action_update: !!submissionData.action_update,
+      action_delete: !!submissionData.action_delete,
+      action_query: !!submissionData.action_query,
+      advanced: !!submissionData.advanced,
+      active: submissionData.active !== false,
+    };
+  }
+
+  if (submissionData.artifact_type === 'script_include') {
+    const apiName = (submissionData.api_name?.trim() || submissionData.name?.replace(/\s+/g, '') || '');
+    submissionData = {
+      ...submissionData,
+      api_name: apiName,
+      access_level: submissionData.access_level || 'package_private',
+      caller_access: submissionData.caller_access?.trim() || '',
+      client_callable: !!submissionData.client_callable,
+      active: submissionData.active !== false,
+    };
+  }
+
+  if (submissionData.artifact_type === 'ui_action') {
+    const normalizedOrder = Number.isNaN(Number(submissionData.order)) ? 100 : Number(submissionData.order);
+    submissionData = {
+      ...submissionData,
+      collection: submissionData.collection?.trim() || '',
+      order: normalizedOrder,
+      condition: submissionData.condition?.trim() || '',
+      hint: submissionData.hint?.trim() || '',
+      onclick: submissionData.onclick?.trim() || '',
+      active: submissionData.active !== false,
+      form_button: !!submissionData.form_button,
+      form_context_menu: !!submissionData.form_context_menu,
+      form_link: !!submissionData.form_link,
+      list_button: !!submissionData.list_button,
+      list_context_menu: !!submissionData.list_context_menu,
+      show_insert: !!submissionData.show_insert,
+      show_update: !!submissionData.show_update,
+      show_query: !!submissionData.show_query,
+      show_multiple_update: !!submissionData.show_multiple_update,
+    };
+  }
+
+  setLoading(true);
+  console.log('Form submitted, creating snippet...');
+
+  try {
+    await onCreateSnippet(submissionData, user.id);
+    console.log('Snippet created successfully, closing modal...');
+    onClose();
+  } catch (err: any) {
+    console.error('Error creating snippet:', err);
+    const errorMessage = err.message || 'Failed to create snippet';
+    setError(errorMessage);
+    console.error('Setting error message:', errorMessage);
+  } finally {
+    setLoading(false);
+    console.log('Create snippet process completed');
+  }
+};
   const handleOptionSchemaChange = (value: string) => {
     try {
       const parsed = value ? JSON.parse(value) : {};
@@ -348,87 +1088,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
               />
             </div>
 
-            {formData.artifact_type !== 'service_portal_widget' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Table/Collection
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.collection || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., sys_user, incident"
-                  />
-                </div>
-
-                {formData.artifact_type === 'business_rule' && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      When
-                    </label>
-                    <select
-                      value={formData.when || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
-                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="" className="bg-slate-800">Select timing</option>
-                      <option value="before" className="bg-slate-800">Before</option>
-                      <option value="after" className="bg-slate-800">After</option>
-                      <option value="async" className="bg-slate-800">Async</option>
-                      <option value="display" className="bg-slate-800">Display</option>
-                    </select>
-                  </div>
-                )}
-
-                {formData.artifact_type === 'ui_action' && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Order
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.order || 100}
-                      onChange={(e) => setFormData(prev => ({ ...prev, order: parseInt(e.target.value) || 100 }))}
-                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="100"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {formData.artifact_type !== 'service_portal_widget' && (
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Condition
-                </label>
-                <input
-                  type="text"
-                  value={formData.condition || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., current.active=true"
-                />
-              </div>
-            )}
-
-            {formData.artifact_type !== 'service_portal_widget' && (
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Script *
-                </label>
-                <textarea
-                  value={formData.script}
-                  onChange={(e) => setFormData(prev => ({ ...prev, script: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter your code here"
-                  rows={10}
-                  required
-                />
-              </div>
-            )}
+            {renderArtifactFields()}
 
             {formData.artifact_type === 'service_portal_widget' && (
               <>
