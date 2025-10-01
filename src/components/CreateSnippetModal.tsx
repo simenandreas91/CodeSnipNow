@@ -624,18 +624,18 @@ const renderArtifactFields = (): React.ReactNode => {
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Onclick (client script)
+              Onclick
             </label>
             <textarea
               value={formData.onclick || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, onclick: e.target.value }))}
               className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="gsftSubmit(null, g_form.getFormElement(), 'action_name');"
+              placeholder="onClick();"
               rows={4}
             />
           </div>
 
-          {renderScriptTextarea('Script *', '(function executeAction(current, previous /*null when async*/ ) {\n  // Server-side logic\n})()')}
+          {renderScriptTextarea('Script *', '(function onClick() {\n  // logic\n})()')}
         </>
       );
     }
