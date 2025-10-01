@@ -295,6 +295,22 @@ const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
 export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDeleteSnippet }: SnippetModalProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const stringifyOptionSchema = (schema: unknown): string => {
+    if (schema === null || schema === undefined) {
+      return '';
+    }
+    if (typeof schema === 'string') {
+      return schema;
+    }
+    if (typeof schema === 'object') {
+      try {
+        return JSON.stringify(schema, null, 2);
+      } catch (error) {
+        console.warn('Failed to stringify option schema', error);
+      }
+    }
+    return '';
+  };
   const [editData, setEditData] = useState(() => ({
     name: snippet.name,
     description: snippet.description,
@@ -314,11 +330,14 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     html: snippet.html || '',
     css: snippet.css || '',
     client_script: snippet.client_script || '',
-    server_script: snippet.server_script || ''
+    server_script: snippet.server_script || '',
+    option_schema: stringifyOptionSchema(snippet.option_schema)
   }));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [optionSchemaError, setOptionSchemaError] = useState<string | null>(null);
+  const hasOptionSchema = Boolean((editData.option_schema || '').trim());
 
   // Update editData when snippet prop changes
   useEffect(() => {
@@ -341,8 +360,10 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
       html: snippet.html || '',
       css: snippet.css || '',
       client_script: snippet.client_script || '',
-      server_script: snippet.server_script || ''
+      server_script: snippet.server_script || '',
+      option_schema: stringifyOptionSchema(snippet.option_schema)
     });
+    setOptionSchemaError(null);
   }, [snippet]);
 
   const isAdmin = user?.email === 'simenstaabyknudsen@gmail.com';
@@ -401,10 +422,11 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
 
   const handleSave = async () => {
     if (!onUpdateSnippet) return;
-    
+
+    setOptionSchemaError(null);
     setSaving(true);
     try {
-      const updates: any = {
+      const updates: Partial<Snippet> = {
         artifact_type: snippet.artifact_type,
         name: editData.name,
         description: editData.description,
@@ -441,6 +463,19 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         updates.css = editData.css;
         updates.client_script = editData.client_script;
         updates.server_script = editData.server_script;
+
+        const optionSchemaInput = (editData.option_schema || '').trim();
+        if (optionSchemaInput) {
+          try {
+            updates.option_schema = JSON.parse(optionSchemaInput);
+          } catch (error) {
+            console.error('Invalid option schema JSON:', error);
+            setOptionSchemaError('Option schema must be valid JSON');
+            return;
+          }
+        } else {
+          updates.option_schema = null;
+        }
       } else {
         updates.script = editData.script;
       }
@@ -452,6 +487,14 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleOptionSchemaChange = (value: string) => {
+    setOptionSchemaError(null);
+    setEditData(prev => ({
+      ...prev,
+      option_schema: value
+    }));
   };
 
   const handleAddTag = () => {
@@ -547,6 +590,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                 <button
                   onClick={() => {
                     setIsEditing(false);
+                    setOptionSchemaError(null);
                     setEditData({
                       name: snippet.name,
                       description: snippet.description,
@@ -565,7 +609,8 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                       html: snippet.html || '',
                       css: snippet.css || '',
                       client_script: snippet.client_script || '',
-                      server_script: snippet.server_script || ''
+                      server_script: snippet.server_script || '',
+                      option_schema: stringifyOptionSchema(snippet.option_schema)
                     });
                   }}
                   className="px-3 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-sm transition-colors"
@@ -927,6 +972,33 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                   )}
                 </div>
               )}
+              {(hasOptionSchema || isEditing) && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-white">Option Schema</h4>
+                    {isEditing && optionSchemaError && (
+                      <span className="text-xs text-red-400">{optionSchemaError}</span>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editData.option_schema}
+                        onChange={(e) => handleOptionSchemaChange(e.target.value)}
+                        className={`w-full px-4 py-3 bg-slate-800 border ${optionSchemaError ? 'border-red-500' : 'border-slate-700'} rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                        rows={10}
+                        placeholder='{"fields":[{"name":"example","label":"Example","type":"string"}]}'
+                      />
+                      <p className="text-xs text-slate-400">
+                        Provide valid JSON describing available widget options.
+                      </p>
+                    </div>
+                  ) : (
+                    <CodeBlock code={editData.option_schema} language="json" />
+                  )}
+                </div>
+              )}
+
             </>
           )}
 

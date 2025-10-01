@@ -57,6 +57,31 @@ const SNIPPET_SELECT_COLUMNS = [
   'updated_at'
 ].join(', ');
 
+const TABLE_SELECT_COLUMNS: Record<string, string> = {
+  service_portal_widgets: [
+    'id',
+    'title',
+    'description',
+    'html',
+    'css',
+    'client_script',
+    'server_script',
+    'controller_as',
+    'link',
+    'demo_data',
+    'option_schema',
+    'repo_path',
+    'author_id',
+    'is_public',
+    'created_at',
+    'updated_at'
+  ].join(', ')
+};
+
+const TABLE_SEARCH_COLUMNS: Record<string, string[]> = {
+  service_portal_widgets: ['title', 'description', 'html', 'client_script', 'server_script']
+};
+
 const PUBLIC_FILTER_EXCEPTIONS = ['mail_scripts', 'inbound_actions', 'core_servicenow_apis'];
 
 interface SnippetCacheEntry {
@@ -124,14 +149,17 @@ export function useSnippets() {
     restrictToPage,
     userId
   }: FetchTableParams) => {
-    if (!supabase) {
+    const client = supabase;
+    if (!client) {
       throw new Error('Supabase client is not configured');
     }
 
     const trimmedQuery = query.trim();
+    const selectColumns = TABLE_SELECT_COLUMNS[table] ?? SNIPPET_SELECT_COLUMNS;
+    const searchColumns = TABLE_SEARCH_COLUMNS[table] ?? ['title', 'description', 'code'];
 
     const runQuery = (columns: string) => {
-      let builder = supabase.from(table).select(columns, { count: 'exact' });
+      let builder = client.from(table).select(columns, { count: 'exact' });
 
       if (userId) {
         builder = builder.eq('author_id', userId);
@@ -139,8 +167,11 @@ export function useSnippets() {
         builder = builder.eq('is_public', true);
       }
 
-      if (trimmedQuery) {
-        builder = builder.or(`title.ilike.%${trimmedQuery}%,description.ilike.%${trimmedQuery}%,code.ilike.%${trimmedQuery}%`);
+      if (trimmedQuery && searchColumns.length > 0) {
+        const filter = searchColumns
+          .map((column) => `${column}.ilike.%${trimmedQuery}%`)
+          .join(',');
+        builder = builder.or(filter);
       }
 
       if (restrictToPage) {
@@ -154,7 +185,7 @@ export function useSnippets() {
       return builder;
     };
 
-    let { data, error, count } = await runQuery(SNIPPET_SELECT_COLUMNS);
+    let { data, error, count } = await runQuery(selectColumns);
 
     if (error && error.code === '42703') {
       console.warn(`Column mismatch for ${table}, falling back to select(*)`);
@@ -187,7 +218,7 @@ export function useSnippets() {
       id: String(item.id),
       name: item.title || '',
       description: item.description || '',
-      script: item.code || '',
+      script: artifactType === 'service_portal_widget' ? (item.server_script || '') : (item.code || ''),
       artifact_type: artifactType,
       subtype: ['integrations', 'core_servicenow_apis', 'specialized_areas'].includes(artifactType) ? item.type : undefined,
       collection: item.collection || item.table_name || '',
@@ -414,9 +445,13 @@ export function useSnippets() {
       }
 
       // Build query to check for duplicates
+      const duplicateSelect = data.artifact_type === 'service_portal_widget'
+        ? 'id, title, server_script, html'
+        : 'id, title, code';
+
       let query = supabase
         .from(artifactConfig.table)
-        .select('id, title, code')
+        .select(duplicateSelect)
         .eq('title', data.name);
 
       // Check for existing snippet with same title
@@ -429,12 +464,22 @@ export function useSnippets() {
 
       // If we find a snippet with the same title, check if the code is also the same
       if (existingSnippets && existingSnippets.length > 0) {
-        const existing = existingSnippets[0];
+        const existing = existingSnippets[0] as any;
         // Normalize whitespace for comparison
-        const normalizeCode = (code: string) => code.replace(/\s+/g, ' ').trim();
-        const existingCodeNormalized = normalizeCode(existing.code || '');
-        const newCodeNormalized = normalizeCode(data.script);
-        
+        const normalize = (value: string | null | undefined) => (value || '').replace(/\s+/g, ' ').trim();
+
+        if (data.artifact_type === 'service_portal_widget') {
+          const existingServerNormalized = normalize(existing.server_script);
+          const newServerNormalized = normalize(data.server_script);
+          const existingHtmlNormalized = normalize(existing.html);
+          const newHtmlNormalized = normalize(data.html);
+
+          return existingServerNormalized === newServerNormalized && existingHtmlNormalized === newHtmlNormalized;
+        }
+
+        const existingCodeNormalized = normalize(existing.code);
+        const newCodeNormalized = normalize(data.script);
+
         return existingCodeNormalized === newCodeNormalized;
       }
 
@@ -472,16 +517,16 @@ export function useSnippets() {
         insertData = {
           title: data.name,
           description: data.description,
-          code: data.script || '',
-          html: data.html,
-          css: data.css,
-          client_script: data.client_script,
-          server_script: data.server_script,
-          option_schema: data.option_schema,
-          demo_data: data.demo_data,
+          html: data.html || '',
+          css: data.css || '',
+          client_script: data.client_script || '',
+          server_script: data.server_script || '',
+          controller_as: data.controller_as || null,
+          link: data.link || null,
+          option_schema: data.option_schema ?? {},
+          demo_data: data.demo_data ?? {},
           author_id: userId,
-          is_public: true,
-          tags: data.tags
+          is_public: true
         };
       } else {
         // Prepare base data for other artifact types
@@ -649,15 +694,23 @@ export function useSnippets() {
       // Map fields from our app's naming convention to database fields
       if (updates.name) updateData.title = updates.name;
       if (updates.description) updateData.description = updates.description;
-      if (updates.script) updateData.code = updates.script;
-      if (updates.tags) updateData.tags = updates.tags;
+      if (updates.script && updates.artifact_type !== 'service_portal_widget') {
+        updateData.code = updates.script;
+      }
+      if (updates.tags && updates.artifact_type !== 'service_portal_widget') {
+        updateData.tags = updates.tags;
+      }
       
       // Add other fields based on artifact type
       if (updates.artifact_type === 'service_portal_widget') {
-        if (updates.html) updateData.html = updates.html;
-        if (updates.css) updateData.css = updates.css;
-        if (updates.client_script) updateData.client_script = updates.client_script;
-        if (updates.server_script) updateData.server_script = updates.server_script;
+        if (updates.html !== undefined) updateData.html = updates.html;
+        if (updates.css !== undefined) updateData.css = updates.css;
+        if (updates.client_script !== undefined) updateData.client_script = updates.client_script;
+        if (updates.server_script !== undefined) updateData.server_script = updates.server_script;
+        if (updates.controller_as !== undefined) updateData.controller_as = updates.controller_as;
+        if (updates.link !== undefined) updateData.link = updates.link;
+        if (updates.option_schema !== undefined) updateData.option_schema = updates.option_schema;
+        if (updates.demo_data !== undefined) updateData.demo_data = updates.demo_data;
       } else {
         // Handle other artifact-specific fields
         if (updates.collection) {
@@ -775,4 +828,3 @@ export function useSnippets() {
     ITEMS_PER_PAGE
   };
 }
-
