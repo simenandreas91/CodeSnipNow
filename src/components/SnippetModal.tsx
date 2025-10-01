@@ -405,6 +405,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     setSaving(true);
     try {
       const updates: any = {
+        artifact_type: snippet.artifact_type,
         name: editData.name,
         description: editData.description,
         collection: editData.collection,
@@ -1025,4 +1026,3 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     </div>
   );
 }
-

@@ -121,6 +121,7 @@ export interface CreateSnippetData {
   onclick?: string;
   hint?: string;
   comments?: string;
+  newlines_to_html?: boolean;  // Mail Script specific field
 }
 
 export interface ArtifactType {

@@ -73,6 +73,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     hint: '',
     comments: '',
     client: false,
+    newlines_to_html: false,
   });
 
   const [tagInput, setTagInput] = useState('');
@@ -649,6 +650,46 @@ const renderArtifactFields = (): React.ReactNode => {
         </>
       );
     }
+    case 'mail_script':
+      return (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Application
+              </label>
+              <input
+                type="text"
+                value="Global"
+                readOnly
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Scoped to the Global application by default.
+              </p>
+            </div>
+            <div className="flex items-center md:justify-end">
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.newlines_to_html}
+                  onChange={handleCheckboxChange('newlines_to_html')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Newlines to HTML
+              </label>
+            </div>
+          </div>
+
+          {renderScriptTextarea('Script *', '// Mail script code\n')}
+        </>
+      );
+    case 'background_script':
+      return (
+        <>
+          {renderScriptTextarea('Script *', '// Background script code\n')}
+        </>
+      );
     case 'service_portal_widget':
       return null;
     default:
