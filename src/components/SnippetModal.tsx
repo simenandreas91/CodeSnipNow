@@ -1059,42 +1059,45 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
             </div>
           )}
 
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-lg font-semibold text-white">Script Code</h4>
-              {!isEditing && (
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      Copy Code
-                    </>
-                  )}
-                </button>
+          {snippet.artifact_type !== 'service_portal_widget' && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-lg font-semibold text-white">Script Code</h4>
+                {!isEditing && (
+                  <button
+                    onClick={handleCopy}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        Copy Code
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              {isEditing ? (
+                <textarea
+                  value={editData.script}
+                  onChange={(e) => setEditData(prev => ({ ...prev, script: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={15}
+                  placeholder="Script code"
+                />
+              ) : (
+                <CodeBlock code={snippet.script} language="javascript" />
               )}
             </div>
-            {isEditing ? (
-              <textarea
-                value={editData.script}
-                onChange={(e) => setEditData(prev => ({ ...prev, script: e.target.value }))}
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={15}
-                placeholder="Script code"
-              />
-            ) : (
-              <CodeBlock code={snippet.script} language="javascript" />
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
