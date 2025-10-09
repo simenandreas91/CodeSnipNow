@@ -139,6 +139,112 @@ const decodeEncodedToken = (token: string): Omit<FilterConditionItem, 'logical'>
   return null;
 };
 
+type SnippetEditState = {
+  name: string;
+  description: string;
+  script: string;
+  collection: string;
+  condition: string;
+  when: string;
+  order: string;
+  priority: string;
+  filter_condition: string;
+  runsOnInsert: 'true' | 'false';
+  runsOnUpdate: 'true' | 'false';
+  runsOnDelete: 'true' | 'false';
+  runsOnQuery: 'true' | 'false';
+  tags: string[];
+  html: string;
+  css: string;
+  client_script: string;
+  server_script: string;
+  option_schema: string;
+};
+
+const formatNumericField = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return String(value);
+};
+
+const stringifyOptionSchema = (schema: unknown): string => {
+  if (schema === null || schema === undefined) {
+    return '';
+  }
+
+  if (typeof schema === 'string') {
+    return schema;
+  }
+
+  if (typeof schema === 'object') {
+    try {
+      return JSON.stringify(schema, null, 2);
+    } catch (error) {
+      console.warn('Failed to stringify option schema', error);
+    }
+  }
+
+  return '';
+};
+
+const normalizeTags = (tags: unknown): string[] => {
+  if (Array.isArray(tags)) {
+    return tags
+      .filter((tag): tag is string => typeof tag === 'string')
+      .map(tag => tag.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof tags === 'string') {
+    const trimmed = tags.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((tag): tag is string => typeof tag === 'string')
+          .map(tag => tag.trim())
+          .filter(Boolean);
+      }
+    } catch {
+      // Not JSON, fall back to comma-separated parsing
+    }
+
+    return trimmed
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const buildEditState = (snippet: Snippet): SnippetEditState => ({
+  name: snippet.name || '',
+  description: snippet.description || '',
+  script: snippet.script || '',
+  collection: snippet.collection || '',
+  condition: snippet.condition || '',
+  when: snippet.when || '',
+  order: formatNumericField(snippet.order),
+  priority: formatNumericField(snippet.priority),
+  filter_condition: snippet.filter_condition || '',
+  runsOnInsert: snippet.action_insert ? 'true' : 'false',
+  runsOnUpdate: snippet.action_update ? 'true' : 'false',
+  runsOnDelete: snippet.action_delete ? 'true' : 'false',
+  runsOnQuery: snippet.action_query ? 'true' : 'false',
+  tags: normalizeTags(snippet.tags),
+  html: snippet.html || '',
+  css: snippet.css || '',
+  client_script: snippet.client_script || '',
+  server_script: snippet.server_script || '',
+  option_schema: stringifyOptionSchema(snippet.option_schema)
+});
+
 const parseEncodedQuery = (raw: string): FilterConditionItem[] => {
   const tokens = raw.split('^').map(token => token.trim()).filter(Boolean);
   const items: FilterConditionItem[] = [];
@@ -295,74 +401,17 @@ const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
 export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDeleteSnippet }: SnippetModalProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const stringifyOptionSchema = (schema: unknown): string => {
-    if (schema === null || schema === undefined) {
-      return '';
-    }
-    if (typeof schema === 'string') {
-      return schema;
-    }
-    if (typeof schema === 'object') {
-      try {
-        return JSON.stringify(schema, null, 2);
-      } catch (error) {
-        console.warn('Failed to stringify option schema', error);
-      }
-    }
-    return '';
-  };
-  const [editData, setEditData] = useState(() => ({
-    name: snippet.name,
-    description: snippet.description,
-    script: snippet.script,
-    collection: snippet.collection || '',
-    condition: snippet.condition || '',
-    when: snippet.when || '',
-    order: snippet.order !== undefined ? String(snippet.order) : '',
-    priority: snippet.priority !== undefined ? String(snippet.priority) : '',
-    filter_condition: snippet.filter_condition || '',
-    runsOnInsert: snippet.action_insert ? 'true' : 'false',
-    runsOnUpdate: snippet.action_update ? 'true' : 'false',
-    runsOnDelete: snippet.action_delete ? 'true' : 'false',
-    runsOnQuery: snippet.action_query ? 'true' : 'false',
-    tags: [...snippet.tags],
-    // Service Portal Widget specific fields
-    html: snippet.html || '',
-    css: snippet.css || '',
-    client_script: snippet.client_script || '',
-    server_script: snippet.server_script || '',
-    option_schema: stringifyOptionSchema(snippet.option_schema)
-  }));
+  const [editData, setEditData] = useState<SnippetEditState>(() => buildEditState(snippet));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [optionSchemaError, setOptionSchemaError] = useState<string | null>(null);
-  const hasOptionSchema = Boolean((editData.option_schema || '').trim());
+  const snippetTags = useMemo(() => normalizeTags(snippet.tags), [snippet.tags]);
+  const hasOptionSchema = Boolean((editData.option_schema ?? '').trim());
 
   // Update editData when snippet prop changes
   useEffect(() => {
-    setEditData({
-      name: snippet.name,
-      description: snippet.description,
-      script: snippet.script,
-      collection: snippet.collection || '',
-      condition: snippet.condition || '',
-      when: snippet.when || '',
-      order: snippet.order !== undefined ? String(snippet.order) : '',
-      priority: snippet.priority !== undefined ? String(snippet.priority) : '',
-      filter_condition: snippet.filter_condition || '',
-      runsOnInsert: snippet.action_insert ? 'true' : 'false',
-      runsOnUpdate: snippet.action_update ? 'true' : 'false',
-      runsOnDelete: snippet.action_delete ? 'true' : 'false',
-      runsOnQuery: snippet.action_query ? 'true' : 'false',
-      tags: [...snippet.tags],
-      // Service Portal Widget specific fields
-      html: snippet.html || '',
-      css: snippet.css || '',
-      client_script: snippet.client_script || '',
-      server_script: snippet.server_script || '',
-      option_schema: stringifyOptionSchema(snippet.option_schema)
-    });
+    setEditData(buildEditState(snippet));
     setOptionSchemaError(null);
   }, [snippet]);
 
@@ -398,9 +447,22 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
   ] as const;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(snippet.script);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (
+      typeof navigator === 'undefined' ||
+      !navigator.clipboard ||
+      typeof navigator.clipboard.writeText !== 'function'
+    ) {
+      console.warn('Clipboard API not available in this environment.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(snippet.script);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy snippet script to clipboard:', error);
+    }
   };
 
   const handleDelete = async () => {
@@ -591,27 +653,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                   onClick={() => {
                     setIsEditing(false);
                     setOptionSchemaError(null);
-                    setEditData({
-                      name: snippet.name,
-                      description: snippet.description,
-                      script: snippet.script,
-                      collection: snippet.collection || '',
-                      condition: snippet.condition || '',
-                      when: snippet.when || '',
-                      order: snippet.order !== undefined ? String(snippet.order) : '',
-                      priority: snippet.priority !== undefined ? String(snippet.priority) : '',
-                      filter_condition: snippet.filter_condition || '',
-                      runsOnInsert: snippet.action_insert ? 'true' : 'false',
-                      runsOnUpdate: snippet.action_update ? 'true' : 'false',
-                      runsOnDelete: snippet.action_delete ? 'true' : 'false',
-                      runsOnQuery: snippet.action_query ? 'true' : 'false',
-                      tags: [...snippet.tags],
-                      html: snippet.html || '',
-                      css: snippet.css || '',
-                      client_script: snippet.client_script || '',
-                      server_script: snippet.server_script || '',
-                      option_schema: stringifyOptionSchema(snippet.option_schema)
-                    });
+                    setEditData(buildEditState(snippet));
                   }}
                   className="px-3 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-sm transition-colors"
                 >
@@ -1002,7 +1044,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
             </>
           )}
 
-          {(snippet.tags.length > 0 || isEditing) && (
+          {(snippetTags.length > 0 || isEditing) && (
             <div className="mb-6">
               <h4 className="text-lg font-semibold text-white mb-3">Tags</h4>
               {isEditing ? (
@@ -1045,7 +1087,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                 </>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {snippet.tags.map((tag, index) => (
+                  {snippetTags.map((tag, index) => (
                     <span
                       key={index}
                       className="inline-flex items-center gap-1 px-3 py-1 bg-white/10 text-slate-300 text-sm rounded-full"
