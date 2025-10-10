@@ -98,6 +98,9 @@ const ENCODED_OPERATOR_CODES = Object.keys(OPERATOR_LABELS)
   .map(op => ({ op, code: op.replace(/\s+/g, '').toUpperCase() }))
   .sort((a, b) => b.code.length - a.code.length);
 
+const ORDER_RELEVANT_TYPES = new Set(['business_rule', 'client_script', 'ui_action']);
+const PRIORITY_RELEVANT_TYPES = new Set(['business_rule']);
+
 const decodeEncodedToken = (token: string): Omit<FilterConditionItem, 'logical'> | null => {
   const trimmedToken = token.trim();
   if (!trimmedToken) {
@@ -408,6 +411,8 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
   const [optionSchemaError, setOptionSchemaError] = useState<string | null>(null);
   const snippetTags = useMemo(() => normalizeTags(snippet.tags), [snippet.tags]);
   const hasOptionSchema = Boolean((editData.option_schema ?? '').trim());
+  const supportsOrderField = ORDER_RELEVANT_TYPES.has(snippet.artifact_type);
+  const supportsPriorityField = PRIORITY_RELEVANT_TYPES.has(snippet.artifact_type);
 
   // Update editData when snippet prop changes
   useEffect(() => {
@@ -502,14 +507,18 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         updates.when = editData.when;
       }
 
-      const orderValue = parseNumericInput(editData.order);
-      if (orderValue !== undefined) {
-        updates.order = orderValue;
+      if (supportsOrderField) {
+        const orderValue = parseNumericInput(editData.order);
+        if (orderValue !== undefined) {
+          updates.order = orderValue;
+        }
       }
 
-      const priorityValue = parseNumericInput(editData.priority);
-      if (priorityValue !== undefined) {
-        updates.priority = priorityValue;
+      if (supportsPriorityField) {
+        const priorityValue = parseNumericInput(editData.priority);
+        if (priorityValue !== undefined) {
+          updates.priority = priorityValue;
+        }
       }
 
       if (snippet.artifact_type === 'business_rule') {
@@ -825,7 +834,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
               </div>
             )}
 
-            {(snippet.order !== undefined || isEditing) && (
+            {supportsOrderField && (snippet.order !== undefined || isEditing) && (
               <div className="flex items-center gap-2 text-slate-300">
                 <Shield className="h-4 w-4 text-orange-400" />
                 <span className="font-medium">Order:</span>
@@ -843,7 +852,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
               </div>
             )}
 
-            {(snippet.priority !== undefined || isEditing) && (
+            {supportsPriorityField && (snippet.priority !== undefined || isEditing) && (
               <div className="flex items-center gap-2 text-slate-300">
                 <Shield className="h-4 w-4 text-red-400" />
                 <span className="font-medium">Priority:</span>
