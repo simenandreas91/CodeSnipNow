@@ -2,7 +2,7 @@ import React from 'react';
 
 import { CodeBlock as UiCodeBlock } from '@/components/ui/code-block';
 
-type Language = 'javascript' | 'html' | 'css';
+type Language = 'javascript' | 'html' | 'css' | 'json';
 
 interface CodeBlockProps {
   code: string;
@@ -48,6 +48,7 @@ const DEFAULT_FILENAMES: Record<Language, string> = {
   javascript: 'snippet.js',
   html: 'snippet.html',
   css: 'snippet.css',
+  json: 'snippet.json',
 };
 
 export function CodeBlock({

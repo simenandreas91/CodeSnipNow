@@ -76,7 +76,7 @@ const parseFilterCondition = (raw: string): ParsedFilterCondition => {
           field: item.getAttribute('field') || '',
           operator: item.getAttribute('operator') || '',
           value: item.getAttribute('value') || '',
-          logical: item.getAttribute('or') === 'true' ? 'OR' : 'AND',
+          logical: (item.getAttribute('or') === 'true' ? 'OR' : 'AND') as 'AND' | 'OR',
           isEnd: item.getAttribute('endquery') === 'true',
           isNewGroup: item.getAttribute('newquery') === 'true'
         }));
@@ -433,7 +433,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     return Number.isFinite(parsed) ? parsed : undefined;
   };
 
-  const formatBooleanFlag = (value?: boolean | string) => {
+  const formatBooleanFlag = (value?: boolean | string | number) => {
     if (value === true || value === 'true' || value === 1 || value === '1') return 'Yes';
     if (value === false || value === 'false' || value === 0 || value === '0') return 'No';
     return 'Not set';
@@ -1142,4 +1142,3 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     </div>
   );
 }
-
