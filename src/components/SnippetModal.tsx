@@ -101,6 +101,19 @@ const ENCODED_OPERATOR_CODES = Object.keys(OPERATOR_LABELS)
 const ORDER_RELEVANT_TYPES = new Set(['business_rule', 'client_script', 'ui_action']);
 const PRIORITY_RELEVANT_TYPES = new Set(['business_rule']);
 
+const CLIENT_SCRIPT_TYPE_OPTIONS = [
+  { value: 'onLoad', label: 'onLoad' },
+  { value: 'onChange', label: 'onChange' },
+  { value: 'onSubmit', label: 'onSubmit' },
+  { value: 'onCellEdit', label: 'onCellEdit' }
+] as const;
+
+const CLIENT_SCRIPT_UI_TYPE_OPTIONS = [
+  { value: '0', label: 'All (0)' },
+  { value: '10', label: 'Desktop (10)' },
+  { value: '1', label: 'Mobile (1)' }
+] as const;
+
 const decodeEncodedToken = (token: string): Omit<FilterConditionItem, 'logical'> | null => {
   const trimmedToken = token.trim();
   if (!trimmedToken) {
@@ -150,6 +163,13 @@ type SnippetEditState = {
   collection: string;
   condition: string;
   when: string;
+  field_name: string;
+  ui_type_code: string;
+  messages: string;
+  global: boolean;
+  applies_extended: boolean;
+  isolate_script: boolean;
+  active: boolean;
   order: string;
   priority: string;
   filter_condition: string;
@@ -234,7 +254,14 @@ const buildEditState = (snippet: Snippet): SnippetEditState => ({
   script_include: snippet.script_include || '',
   collection: snippet.collection || '',
   condition: snippet.condition || '',
-  when: snippet.when || '',
+  when: snippet.when || (snippet.artifact_type === 'client_script' ? 'onLoad' : ''),
+  field_name: snippet.field_name || '',
+  ui_type_code: snippet.ui_type_code !== undefined ? String(snippet.ui_type_code) : '0',
+  messages: snippet.messages || '',
+  global: snippet.global || false,
+  applies_extended: snippet.applies_extended || false,
+  isolate_script: snippet.isolate_script !== false,
+  active: snippet.active !== false,
   order: formatNumericField(snippet.order),
   priority: formatNumericField(snippet.priority),
   filter_condition: snippet.filter_condition || '',
@@ -554,6 +581,17 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         updates.action_query = editData.runsOnQuery === 'true';
       }
 
+      if (snippet.artifact_type === 'client_script') {
+        updates.field_name = editData.field_name.trim();
+        updates.messages = editData.messages;
+        updates.global = editData.global;
+        updates.applies_extended = editData.applies_extended;
+        updates.isolate_script = editData.isolate_script;
+        const parsedUiType = parseInt(editData.ui_type_code, 10);
+        updates.ui_type_code = Number.isNaN(parsedUiType) ? 0 : parsedUiType;
+        updates.active = editData.active;
+      }
+
       // Add artifact-specific fields
       if (snippet.artifact_type === 'service_portal_widget') {
         updates.html = editData.html;
@@ -756,12 +794,13 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                 <span className="font-medium">
                   {snippet.artifact_type === 'business_rule' ? 'When:' : 'Script Type:'}
                 </span>
-                {isEditing && snippet.artifact_type === 'business_rule' ? (
-                  <div className="relative">
-                    <select
-                      value={editData.when}
-                      onChange={(e) => setEditData(prev => ({ ...prev, when: e.target.value }))}
-                      className="appearance-none bg-slate-900/80 border border-purple-500/40 rounded px-3 py-2 pr-10 text-purple-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                {isEditing ? (
+                  snippet.artifact_type === 'business_rule' ? (
+                    <div className="relative">
+                      <select
+                        value={editData.when}
+                        onChange={(e) => setEditData(prev => ({ ...prev, when: e.target.value }))}
+                        className="appearance-none bg-slate-900/80 border border-purple-500/40 rounded px-3 py-2 pr-10 text-purple-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                     >
                       <option value="" className="bg-slate-900 text-purple-100">Select timing</option>
                       <option value="before" className="bg-slate-900 text-purple-100">Before</option>
@@ -771,6 +810,26 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-200" />
                   </div>
+                  ) : snippet.artifact_type === 'client_script' ? (
+                    <div className="relative">
+                      <select
+                        value={editData.when || 'onLoad'}
+                        onChange={(e) => setEditData(prev => ({ ...prev, when: e.target.value }))}
+                        className="appearance-none bg-slate-900/80 border border-purple-500/40 rounded px-3 py-2 pr-10 text-purple-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                      >
+                        {CLIENT_SCRIPT_TYPE_OPTIONS.map(option => (
+                          <option key={option.value} value={option.value} className="bg-slate-900 text-purple-100">
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-200" />
+                    </div>
+                  ) : (
+                    <span className="text-purple-300">
+                      {formatWhenValue(isEditing ? editData.when : snippet.when)}
+                    </span>
+                  )
                 ) : (
                   <span className="text-purple-300">
                     {formatWhenValue(isEditing ? editData.when : snippet.when)}
@@ -779,23 +838,102 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
               </div>
             )}
 
-            {snippet.field_name && snippet.artifact_type === 'client_script' && (
+            {snippet.artifact_type === 'client_script' && (snippet.field_name || isEditing) && (
               <div className="flex items-center gap-2 text-slate-300">
                 <Code2 className="h-4 w-4 text-green-400" />
                 <span className="font-medium">Field:</span>
-                <span className="text-green-300">{snippet.field_name}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.field_name}
+                    onChange={(e) => setEditData(prev => ({ ...prev, field_name: e.target.value }))}
+                    className="bg-white/10 border border-white/20 rounded px-2 py-1 text-green-300 text-sm flex-1"
+                    placeholder="Field name"
+                  />
+                ) : (
+                  <span className="text-green-300">{snippet.field_name}</span>
+                )}
               </div>
             )}
 
-            {snippet.ui_type_code !== undefined && snippet.artifact_type === 'client_script' && (
+            {snippet.artifact_type === 'client_script' && (snippet.ui_type_code !== undefined || isEditing) && (
               <div className="flex items-center gap-2 text-slate-300">
                 <Shield className="h-4 w-4 text-cyan-400" />
                 <span className="font-medium">UI Type:</span>
-                <span className="text-cyan-300">
-                  {snippet.ui_type_code === 10 ? 'Desktop (10)' : 
-                   snippet.ui_type_code === 1 ? 'Mobile (1)' : 
-                   'All (0)'}
-                </span>
+                {isEditing ? (
+                  <div className="relative">
+                    <select
+                      value={editData.ui_type_code || '0'}
+                      onChange={(e) => setEditData(prev => ({ ...prev, ui_type_code: e.target.value }))}
+                      className="appearance-none bg-slate-900/80 border border-cyan-500/40 rounded px-3 py-2 pr-10 text-cyan-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-colors"
+                    >
+                      {CLIENT_SCRIPT_UI_TYPE_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value} className="bg-slate-900 text-cyan-100">
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200" />
+                  </div>
+                ) : (
+                  <span className="text-cyan-300">
+                    {snippet.ui_type_code === 10 ? 'Desktop (10)' : 
+                     snippet.ui_type_code === 1 ? 'Mobile (1)' : 
+                     'All (0)'}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {snippet.artifact_type === 'client_script' && (
+              <div className="md:col-span-2">
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-4 text-slate-300">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editData.active}
+                        onChange={(e) => setEditData(prev => ({ ...prev, active: e.target.checked }))}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>Active</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editData.applies_extended}
+                        onChange={(e) => setEditData(prev => ({ ...prev, applies_extended: e.target.checked }))}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>Inherited</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editData.global}
+                        onChange={(e) => setEditData(prev => ({ ...prev, global: e.target.checked }))}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>Global</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editData.isolate_script}
+                        onChange={(e) => setEditData(prev => ({ ...prev, isolate_script: e.target.checked }))}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>Isolate script</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3 text-slate-400">
+                    <span>Active: {formatBooleanFlag(snippet.active)}</span>
+                    <span>Inherited: {formatBooleanFlag(snippet.applies_extended)}</span>
+                    <span>Global: {formatBooleanFlag(snippet.global)}</span>
+                    <span>Isolate: {formatBooleanFlag(snippet.isolate_script)}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -973,6 +1111,25 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
               ) : (
                 <div className="bg-slate-800/50 rounded-lg p-4">
                   <code className="text-green-300 text-sm">{snippet.condition}</code>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(snippet.messages || isEditing) && snippet.artifact_type === 'client_script' && (
+            <div className="mb-6">
+              <h4 className="text-lg font-semibold text-white mb-3">Messages</h4>
+              {isEditing ? (
+                <textarea
+                  value={editData.messages}
+                  onChange={(e) => setEditData(prev => ({ ...prev, messages: e.target.value }))}
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-white/20 rounded-lg text-blue-200 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Optional UI messages to display"
+                />
+              ) : (
+                <div className="bg-slate-800/50 rounded-lg p-4 text-blue-200 text-sm whitespace-pre-wrap">
+                  {snippet.messages || 'None provided.'}
                 </div>
               )}
             </div>

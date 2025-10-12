@@ -761,6 +761,24 @@ export function useSnippets() {
         if (updates.script_include !== undefined && updates.artifact_type === 'client_script') {
           updateData.script_include = updates.script_include;
         }
+        if (updates.field_name !== undefined && updates.artifact_type === 'client_script') {
+          updateData.field_name = updates.field_name;
+        }
+        if (updates.ui_type_code !== undefined && updates.artifact_type === 'client_script') {
+          updateData.ui_type_code = updates.ui_type_code;
+        }
+        if (updates.global !== undefined && updates.artifact_type === 'client_script') {
+          updateData.global = updates.global;
+        }
+        if (updates.applies_extended !== undefined && updates.artifact_type === 'client_script') {
+          updateData.applies_extended = updates.applies_extended;
+        }
+        if (updates.isolate_script !== undefined && updates.artifact_type === 'client_script') {
+          updateData.isolate_script = updates.isolate_script;
+        }
+        if (updates.messages !== undefined && updates.artifact_type === 'client_script') {
+          updateData.messages = updates.messages;
+        }
         if (updates.active !== undefined) updateData.active = updates.active;
       }
 
