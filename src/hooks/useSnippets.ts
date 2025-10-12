@@ -44,6 +44,7 @@ const SNIPPET_SELECT_COLUMNS = [
   'html',
   'css',
   'client_script',
+  'script_include',
   'server_script',
   'controller_as',
   'link',
@@ -253,6 +254,7 @@ export function useSnippets() {
       html: item.html || '',
       css: item.css || '',
       client_script: item.client_script || '',
+      script_include: item.script_include || '',
       server_script: item.server_script || '',
       controller_as: item.controller_as || '',
       link: item.link || '',
@@ -572,7 +574,8 @@ export function useSnippets() {
               messages: data.messages,
               order_value: data.order_value,
               view: data.view,
-              ui_type_code: data.ui_type_code
+              ui_type_code: data.ui_type_code,
+              script_include: data.script_include || ''
             };
             break;
           case 'script_include':
@@ -755,6 +758,9 @@ export function useSnippets() {
         }
         
         if (updates.condition) updateData.condition = updates.condition;
+        if (updates.script_include !== undefined && updates.artifact_type === 'client_script') {
+          updateData.script_include = updates.script_include;
+        }
         if (updates.active !== undefined) updateData.active = updates.active;
       }
 

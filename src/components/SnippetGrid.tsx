@@ -1,4 +1,3 @@
-import React from 'react';
 import { SnippetCard } from './SnippetCard';
 import { Loader2 } from 'lucide-react';
 import type { Snippet } from '../types/snippet';

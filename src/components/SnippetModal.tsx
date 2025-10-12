@@ -146,6 +146,7 @@ type SnippetEditState = {
   name: string;
   description: string;
   script: string;
+  script_include: string;
   collection: string;
   condition: string;
   when: string;
@@ -230,6 +231,7 @@ const buildEditState = (snippet: Snippet): SnippetEditState => ({
   name: snippet.name || '',
   description: snippet.description || '',
   script: snippet.script || '',
+  script_include: snippet.script_include || '',
   collection: snippet.collection || '',
   condition: snippet.condition || '',
   when: snippet.when || '',
@@ -403,6 +405,7 @@ const FilterConditionDisplay: React.FC<{ value: string }> = ({ value }) => {
 
 export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDeleteSnippet }: SnippetModalProps) {
   const [copied, setCopied] = useState(false);
+  const [copiedInclude, setCopiedInclude] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<SnippetEditState>(() => buildEditState(snippet));
   const [saving, setSaving] = useState(false);
@@ -467,6 +470,29 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy snippet script to clipboard:', error);
+    }
+  };
+
+  const handleCopyScriptInclude = async () => {
+    if (!snippet.script_include) {
+      return;
+    }
+
+    if (
+      typeof navigator === 'undefined' ||
+      !navigator.clipboard ||
+      typeof navigator.clipboard.writeText !== 'function'
+    ) {
+      console.warn('Clipboard API not available in this environment.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(snippet.script_include);
+      setCopiedInclude(true);
+      setTimeout(() => setCopiedInclude(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy script include to clipboard:', error);
     }
   };
 
@@ -549,6 +575,9 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         }
       } else {
         updates.script = editData.script;
+        if (snippet.artifact_type === 'client_script') {
+          updates.script_include = editData.script_include;
+        }
       }
       
       await onUpdateSnippet(snippet.id, updates);
@@ -1110,41 +1139,117 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
             </div>
           )}
 
-          {snippet.artifact_type !== 'service_portal_widget' && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-lg font-semibold text-white">Script Code</h4>
-                {!isEditing && (
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-4 w-4" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4" />
-                        Copy Code
-                      </>
-                    )}
-                  </button>
+          {snippet.artifact_type === 'client_script' ? (
+            <div className="mb-6 space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-lg font-semibold text-white">Client Script</h4>
+                  {!isEditing && (
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          Copy Script
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                {isEditing ? (
+                  <textarea
+                    value={editData.script}
+                    onChange={(e) => setEditData(prev => ({ ...prev, script: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={15}
+                    placeholder="Client script code"
+                  />
+                ) : (
+                  <CodeBlock code={snippet.script} language="javascript" />
                 )}
               </div>
-              {isEditing ? (
-                <textarea
-                  value={editData.script}
-                  onChange={(e) => setEditData(prev => ({ ...prev, script: e.target.value }))}
-                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={15}
-                  placeholder="Script code"
-                />
-              ) : (
-                <CodeBlock code={snippet.script} language="javascript" />
+
+              {(snippet.script_include || isEditing) && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-white">Script Include</h4>
+                    {!isEditing && snippet.script_include && (
+                      <button
+                        onClick={handleCopyScriptInclude}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        {copiedInclude ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4" />
+                            Copy Include
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <textarea
+                      value={editData.script_include}
+                      onChange={(e) => setEditData(prev => ({ ...prev, script_include: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={15}
+                      placeholder="Associated script include code"
+                    />
+                  ) : (
+                    <CodeBlock code={snippet.script_include} language="javascript" />
+                  )}
+                </div>
               )}
             </div>
+          ) : (
+            snippet.artifact_type !== 'service_portal_widget' && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-lg font-semibold text-white">Script Code</h4>
+                  {!isEditing && (
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          Copy Code
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                {isEditing ? (
+                  <textarea
+                    value={editData.script}
+                    onChange={(e) => setEditData(prev => ({ ...prev, script: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={15}
+                    placeholder="Script code"
+                  />
+                ) : (
+                  <CodeBlock code={snippet.script} language="javascript" />
+                )}
+              </div>
+            )
           )}
         </div>
       </div>

@@ -9,6 +9,7 @@ export interface Snippet {
   name: string;
   description: string;
   script: string;
+  script_include: string;
   artifact_type: string;
   subtype?: string;
   collection: string;
@@ -62,6 +63,7 @@ export interface CreateSnippetData {
   name: string;
   description: string;
   script: string;
+  script_include?: string;
   artifact_type: string;
   collection?: string;
   condition?: string;

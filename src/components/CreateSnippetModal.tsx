@@ -20,6 +20,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     name: '',
     description: '',
     script: '',
+    script_include: '',
     artifact_type: 'business_rule',
     collection: '',
     condition: '',
@@ -777,6 +778,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
           name: extractValue('name') || extractValue('sys_name'),
           description: extractValue('description'),
           script: extractValue('script'),
+          script_include: extractValue('script_include'),
           artifact_type: artifactType,
           collection: extractValue('collection') || extractValue('table') || extractValue('table_name'),
           condition: extractValue('condition'),
@@ -943,6 +945,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       when: submissionData.when?.trim() || 'onLoad',
       order_value: submissionData.order_value ?? 100,
       ui_type_code: submissionData.ui_type_code ?? 0,
+      script_include: submissionData.script_include?.trim() || ''
     };
   }
 
