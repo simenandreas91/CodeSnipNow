@@ -84,14 +84,20 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     setFormData(prev => ({ ...prev, [field]: checked }));
   };
 
-  const renderScriptTextarea = (label: string, placeholder: string, required = true, rows = 10) => (
+  const renderScriptTextarea = (
+    label: string,
+    placeholder: string,
+    required = true,
+    rows = 10,
+    field: 'script' | 'script_include' = 'script'
+  ) => (
     <div>
       <label className="block text-sm font-medium text-slate-300 mb-2">
         {label}
       </label>
       <textarea
-        value={formData.script}
-        onChange={(e) => setFormData(prev => ({ ...prev, script: e.target.value }))}
+        value={(formData[field] as string) || ''}
+        onChange={(e) => setFormData(prev => ({ ...prev, [field]: e.target.value }))}
         className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder={placeholder}
         rows={rows}
@@ -268,6 +274,13 @@ const renderArtifactFields = (): React.ReactNode => {
           </div>
 
           {renderScriptTextarea('Script *', 'function onLoad() {\n  // Client script\n}')}
+          {renderScriptTextarea(
+            'Script Include (optional)',
+            'var MyScriptInclude = Class.create({\n  initialize: function() {},\n  myMethod: function() {}\n});',
+            false,
+            12,
+            'script_include'
+          )}
 
           <div className="flex flex-wrap gap-4">
             <label className="inline-flex items-center gap-2 text-slate-300">
