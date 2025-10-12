@@ -114,6 +114,13 @@ const CLIENT_SCRIPT_UI_TYPE_OPTIONS = [
   { value: '1', label: 'Mobile (1)' }
 ] as const;
 
+const SCRIPT_INCLUDE_ACCESS_LEVEL_OPTIONS = [
+  { value: 'package_private', label: 'Package Private' },
+  { value: 'public', label: 'Public' },
+  { value: 'protected', label: 'Protected' },
+  { value: 'private', label: 'Private' }
+] as const;
+
 const decodeEncodedToken = (token: string): Omit<FilterConditionItem, 'logical'> | null => {
   const trimmedToken = token.trim();
   if (!trimmedToken) {
@@ -170,6 +177,13 @@ type SnippetEditState = {
   applies_extended: boolean;
   isolate_script: boolean;
   active: boolean;
+  api_name: string;
+  access_level: string;
+  caller_access: string;
+  client_callable: boolean;
+  mobile_callable: boolean;
+  sandbox_callable: boolean;
+  sys_policy: string;
   order: string;
   priority: string;
   filter_condition: string;
@@ -262,6 +276,13 @@ const buildEditState = (snippet: Snippet): SnippetEditState => ({
   applies_extended: snippet.applies_extended || false,
   isolate_script: snippet.isolate_script !== false,
   active: snippet.active !== false,
+  api_name: snippet.api_name || '',
+  access_level: snippet.access_level || 'package_private',
+  caller_access: snippet.caller_access || '',
+  client_callable: snippet.client_callable || false,
+  mobile_callable: snippet.mobile_callable || false,
+  sandbox_callable: snippet.sandbox_callable || false,
+  sys_policy: snippet.sys_policy || '',
   order: formatNumericField(snippet.order),
   priority: formatNumericField(snippet.priority),
   filter_condition: snippet.filter_condition || '',
@@ -589,6 +610,17 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         updates.isolate_script = editData.isolate_script;
         const parsedUiType = parseInt(editData.ui_type_code, 10);
         updates.ui_type_code = Number.isNaN(parsedUiType) ? 0 : parsedUiType;
+        updates.active = editData.active;
+      }
+
+      if (snippet.artifact_type === 'script_include') {
+        updates.api_name = editData.api_name.trim();
+        updates.access_level = editData.access_level;
+        updates.caller_access = editData.caller_access;
+        updates.client_callable = editData.client_callable;
+        updates.mobile_callable = editData.mobile_callable;
+        updates.sandbox_callable = editData.sandbox_callable;
+        updates.sys_policy = editData.sys_policy;
         updates.active = editData.active;
       }
 
@@ -937,35 +969,126 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
               </div>
             )}
 
-            {snippet.api_name && snippet.artifact_type === 'script_include' && (
-              <div className="flex items-center gap-2 text-slate-300">
-                <Code2 className="h-4 w-4 text-blue-400" />
-                <span className="font-medium">API Name:</span>
-                <span className="text-blue-300">{snippet.api_name}</span>
-              </div>
-            )}
-
             {snippet.artifact_type === 'script_include' && (
-              <div className="flex items-center gap-2 text-slate-300">
-                <Shield className="h-4 w-4 text-purple-400" />
-                <span className="font-medium">Access Level:</span>
-                <span className="text-purple-300">{snippet.access_level || 'Package Private'}</span>
-              </div>
-            )}
+              <div className="md:col-span-2 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <Code2 className="h-4 w-4 text-blue-400" />
+                    <span className="font-medium">API Name:</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editData.api_name}
+                        onChange={(e) => setEditData(prev => ({ ...prev, api_name: e.target.value }))}
+                        className="flex-1 bg-white/10 border border-white/20 rounded px-2 py-1 text-blue-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="API name"
+                      />
+                    ) : (
+                      <span className="text-blue-300">{snippet.api_name}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <Shield className="h-4 w-4 text-purple-400" />
+                    <span className="font-medium">Access Level:</span>
+                    {isEditing ? (
+                      <div className="relative flex-1">
+                        <select
+                          value={editData.access_level}
+                          onChange={(e) => setEditData(prev => ({ ...prev, access_level: e.target.value }))}
+                          className="appearance-none w-full bg-slate-900/80 border border-purple-500/40 rounded px-3 py-2 pr-10 text-purple-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                        >
+                          {SCRIPT_INCLUDE_ACCESS_LEVEL_OPTIONS.map(option => (
+                            <option key={option.value} value={option.value} className="bg-slate-900 text-purple-100">
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-200" />
+                      </div>
+                    ) : (
+                      <span className="text-purple-300">{snippet.access_level || 'Package Private'}</span>
+                    )}
+                  </div>
+                </div>
 
-            {snippet.caller_access && snippet.artifact_type === 'script_include' && (
-              <div className="flex items-center gap-2 text-slate-300">
-                <Shield className="h-4 w-4 text-yellow-400" />
-                <span className="font-medium">Caller Access:</span>
-                <span className="text-yellow-300">{snippet.caller_access}</span>
-              </div>
-            )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2 text-slate-300">
+                    <span className="font-medium">Caller Access:</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editData.caller_access}
+                        onChange={(e) => setEditData(prev => ({ ...prev, caller_access: e.target.value }))}
+                        className="bg-white/10 border border-white/20 rounded px-3 py-2 text-yellow-200 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                        placeholder="Caller access"
+                      />
+                    ) : (
+                      <span className="text-yellow-300">{snippet.caller_access || 'Not set'}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 text-slate-300">
+                    <span className="font-medium">System Policy:</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editData.sys_policy}
+                        onChange={(e) => setEditData(prev => ({ ...prev, sys_policy: e.target.value }))}
+                        className="bg-white/10 border border-white/20 rounded px-3 py-2 text-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="System policy"
+                      />
+                    ) : (
+                      <span className="text-red-300">{snippet.sys_policy || 'Not set'}</span>
+                    )}
+                  </div>
+                </div>
 
-            {snippet.sys_policy && snippet.artifact_type === 'script_include' && (
-              <div className="flex items-center gap-2 text-slate-300">
-                <Shield className="h-4 w-4 text-red-400" />
-                <span className="font-medium">System Policy:</span>
-                <span className="text-red-300">{snippet.sys_policy}</span>
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-4 text-slate-300">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editData.active}
+                        onChange={(e) => setEditData(prev => ({ ...prev, active: e.target.checked }))}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>Active</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editData.client_callable}
+                        onChange={(e) => setEditData(prev => ({ ...prev, client_callable: e.target.checked }))}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-green-500 focus:ring-green-500"
+                      />
+                      <span>Client Callable</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editData.mobile_callable}
+                        onChange={(e) => setEditData(prev => ({ ...prev, mobile_callable: e.target.checked }))}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-cyan-500 focus:ring-cyan-500"
+                      />
+                      <span>Mobile Callable</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editData.sandbox_callable}
+                        onChange={(e) => setEditData(prev => ({ ...prev, sandbox_callable: e.target.checked }))}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-orange-500 focus:ring-orange-500"
+                      />
+                      <span>Sandbox Callable</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3 text-slate-400">
+                    <span>Active: {formatBooleanFlag(snippet.active)}</span>
+                    <span>Client Callable: {formatBooleanFlag(snippet.client_callable)}</span>
+                    <span>Mobile Callable: {formatBooleanFlag(snippet.mobile_callable)}</span>
+                    <span>Sandbox Callable: {formatBooleanFlag(snippet.sandbox_callable)}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -974,30 +1097,6 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                 <Shield className="h-4 w-4 text-yellow-400" />
                 <span className="font-medium">Global:</span>
                 <span className="text-yellow-300">{snippet.global ? 'Yes' : 'No'}</span>
-              </div>
-            )}
-
-            {snippet.client_callable !== undefined && snippet.artifact_type === 'script_include' && (
-              <div className="flex items-center gap-2 text-slate-300">
-                <Shield className="h-4 w-4 text-green-400" />
-                <span className="font-medium">Client Callable:</span>
-                <span className="text-green-300">{snippet.client_callable ? 'Yes' : 'No'}</span>
-              </div>
-            )}
-
-            {snippet.mobile_callable !== undefined && snippet.artifact_type === 'script_include' && (
-              <div className="flex items-center gap-2 text-slate-300">
-                <Shield className="h-4 w-4 text-cyan-400" />
-                <span className="font-medium">Mobile Callable:</span>
-                <span className="text-cyan-300">{snippet.mobile_callable ? 'Yes' : 'No'}</span>
-              </div>
-            )}
-
-            {snippet.sandbox_callable !== undefined && snippet.artifact_type === 'script_include' && (
-              <div className="flex items-center gap-2 text-slate-300">
-                <Shield className="h-4 w-4 text-orange-400" />
-                <span className="font-medium">Sandbox Callable:</span>
-                <span className="text-orange-300">{snippet.sandbox_callable ? 'Yes' : 'No'}</span>
               </div>
             )}
 

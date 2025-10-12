@@ -779,6 +779,27 @@ export function useSnippets() {
         if (updates.messages !== undefined && updates.artifact_type === 'client_script') {
           updateData.messages = updates.messages;
         }
+        if (updates.api_name !== undefined && updates.artifact_type === 'script_include') {
+          updateData.api_name = updates.api_name;
+        }
+        if (updates.access_level !== undefined && updates.artifact_type === 'script_include') {
+          updateData.access_level = updates.access_level;
+        }
+        if (updates.caller_access !== undefined && updates.artifact_type === 'script_include') {
+          updateData.caller_access = updates.caller_access;
+        }
+        if (updates.client_callable !== undefined && updates.artifact_type === 'script_include') {
+          updateData.client_callable = updates.client_callable;
+        }
+        if (updates.mobile_callable !== undefined && updates.artifact_type === 'script_include') {
+          updateData.mobile_callable = updates.mobile_callable;
+        }
+        if (updates.sandbox_callable !== undefined && updates.artifact_type === 'script_include') {
+          updateData.sandbox_callable = updates.sandbox_callable;
+        }
+        if (updates.sys_policy !== undefined && updates.artifact_type === 'script_include') {
+          updateData.sys_policy = updates.sys_policy;
+        }
         if (updates.active !== undefined) updateData.active = updates.active;
       }
 
