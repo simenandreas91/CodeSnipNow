@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase, hasValidSupabaseCredentials } from '../lib/supabase';
+import { StorageService } from '../lib/storage';
 import type { Snippet, CreateSnippetData } from '../types/snippet';
 import { ARTIFACT_TYPES } from '../types/snippet';
 
@@ -51,6 +52,8 @@ const SNIPPET_SELECT_COLUMNS = [
   'demo_data',
   'option_schema',
   'repo_path',
+  'preview_image_path',
+  'preview_image_url',
   'tags',
   'author_id',
   'is_public',
@@ -72,6 +75,8 @@ const TABLE_SELECT_COLUMNS: Record<string, string> = {
     'demo_data',
     'option_schema',
     'repo_path',
+    'preview_image_path',
+    'preview_image_url',
     'author_id',
     'is_public',
     'created_at',
@@ -261,6 +266,9 @@ export function useSnippets() {
       demo_data: item.demo_data || null,
       option_schema: item.option_schema || null,
       repo_path: item.repo_path || '',
+      preview_image_path: item.preview_image_path || null,
+      preview_image_url: item.preview_image_url
+        || (item.preview_image_path ? StorageService.getImageUrl(item.preview_image_path) : null),
       tags: item.tags || [],
       created_by: 'User',
       created_at: item.created_at,
@@ -630,6 +638,13 @@ export function useSnippets() {
         insertData = { ...baseData, ...specificData };
       }
 
+      if (data.preview_image_path) {
+        (insertData as any).preview_image_path = data.preview_image_path;
+      }
+      if (data.preview_image_url) {
+        (insertData as any).preview_image_url = data.preview_image_url;
+      }
+
       // Insert the data into the appropriate table
       const { data: result, error } = await supabase
         .from(artifactConfig.table)
@@ -702,6 +717,12 @@ export function useSnippets() {
       }
       if (updates.tags && updates.artifact_type !== 'service_portal_widget') {
         updateData.tags = updates.tags;
+      }
+      if (updates.preview_image_path !== undefined) {
+        updateData.preview_image_path = updates.preview_image_path;
+      }
+      if (updates.preview_image_url !== undefined) {
+        updateData.preview_image_url = updates.preview_image_url;
       }
       
       // Add other fields based on artifact type

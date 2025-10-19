@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { X, Upload, Plus, Loader2 } from 'lucide-react';
+import { X, Upload, Plus, Loader2, Image as ImageIcon, Trash2 } from 'lucide-react';
 import type { User, CreateSnippetData } from '../types/snippet';
 import { ARTIFACT_TYPES } from '../types/snippet';
+import { ImageUploadModal } from './ImageUploadModal';
+import { StorageService } from '../lib/storage';
 
 interface CreateSnippetModalProps {
   onClose: () => void;
@@ -15,6 +17,8 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
   const [optionSchemaError, setOptionSchemaError] = useState('');
   const [demoDataError, setDemoDataError] = useState('');
   const [method, setMethod] = useState<'manual' | 'xml'>('manual');
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [removingImage, setRemovingImage] = useState(false);
   
   const [formData, setFormData] = useState<CreateSnippetData>({
     name: '',
@@ -76,6 +80,8 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     data_table: '',
     client: false,
     newlines_to_html: false,
+    preview_image_path: null,
+    preview_image_url: null,
   });
 
   const [tagInput, setTagInput] = useState('');
@@ -894,6 +900,43 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     }));
   };
 
+  const handleImageUploaded = (url: string, path: string) => {
+    setFormData(prev => ({
+      ...prev,
+      preview_image_url: url,
+      preview_image_path: path
+    }));
+  };
+
+  const handleRemoveImage = async () => {
+    if (!formData.preview_image_path && !formData.preview_image_url) {
+      return;
+    }
+
+    setRemovingImage(true);
+    setError('');
+    try {
+      if (formData.preview_image_path) {
+        const removed = await StorageService.deleteImage(formData.preview_image_path);
+        if (!removed) {
+          setError('Failed to remove the image. Please try again.');
+          return;
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        preview_image_path: null,
+        preview_image_url: null
+      }));
+    } catch (err) {
+      console.error('Failed to remove image:', err);
+      setError('Failed to remove the image. Please try again.');
+    } finally {
+      setRemovingImage(false);
+    }
+  };
+
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -1066,8 +1109,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-slate-900/95 backdrop-blur-sm border border-white/20 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+    <>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="bg-slate-900/95 backdrop-blur-sm border border-white/20 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-white/10">
           <h2 className="text-xl font-bold text-white">Create New Snippet</h2>
           <button
@@ -1168,6 +1212,63 @@ const handleSubmit = async (e: React.FormEvent) => {
                 rows={3}
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Preview Image
+              </label>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border border-dashed border-white/20 bg-white/5 p-4">
+                {formData.preview_image_url ? (
+                  <>
+                    <img
+                      src={formData.preview_image_url || ''}
+                      alt="Snippet preview"
+                      className="h-32 w-full sm:w-48 object-cover rounded-lg border border-white/10 bg-slate-900/50"
+                    />
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowImageModal(true)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                        Change Image
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        disabled={removingImage}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-red-300 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {removingImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        Remove
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+                    <p className="text-sm text-slate-400 flex-1">
+                      Upload an optional screenshot to showcase this snippet or widget.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowImageModal(true)}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      Upload Image
+                    </button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Recommended size 800×450. Stored securely in Supabase Storage.
+              </p>
             </div>
 
             {renderArtifactFields()}
@@ -1353,6 +1454,17 @@ const handleSubmit = async (e: React.FormEvent) => {
           </form>
         </div>
       </div>
-    </div>
+      </div>
+      {showImageModal && (
+        <ImageUploadModal
+          onClose={() => setShowImageModal(false)}
+          onImageUploaded={(url, path) => {
+            handleImageUploaded(url, path);
+            setShowImageModal(false);
+          }}
+          userId={user.id}
+        />
+      )}
+    </>
   );
 }

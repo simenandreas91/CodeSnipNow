@@ -199,6 +199,8 @@ type SnippetEditState = {
   data_table: string;
   link: string;
   option_schema: string;
+  preview_image_url: string;
+  preview_image_path: string;
 };
 
 const formatNumericField = (value: number | null | undefined): string => {
@@ -299,7 +301,9 @@ const buildEditState = (snippet: Snippet): SnippetEditState => ({
   server_script: snippet.server_script || '',
   data_table: snippet.data_table || '',
   link: snippet.link || '',
-  option_schema: stringifyOptionSchema(snippet.option_schema)
+  option_schema: stringifyOptionSchema(snippet.option_schema),
+  preview_image_url: snippet.preview_image_url || '',
+  preview_image_path: snippet.preview_image_path || ''
 });
 
 const parseEncodedQuery = (raw: string): FilterConditionItem[] => {
@@ -785,6 +789,15 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+          {(isEditing ? editData.preview_image_url : snippet.preview_image_url) && (
+            <div className="mb-6 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+              <img
+                src={(isEditing ? editData.preview_image_url : snippet.preview_image_url) || ''}
+                alt={`${snippet.name} preview`}
+                className="h-64 w-full object-cover"
+              />
+            </div>
+          )}
           <div className="mb-6">
             {isEditing ? (
               <textarea

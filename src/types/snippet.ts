@@ -58,6 +58,8 @@ export interface Snippet {
   updated_at: string;
   sys_id: string;
   user_id: string;
+  preview_image_path?: string | null;
+  preview_image_url?: string | null;
 }
 
 export interface CreateSnippetData {
@@ -126,6 +128,8 @@ export interface CreateSnippetData {
   hint?: string;
   comments?: string;
   newlines_to_html?: boolean;  // Mail Script specific field
+  preview_image_path?: string | null;
+  preview_image_url?: string | null;
 }
 
 export interface ArtifactType {
