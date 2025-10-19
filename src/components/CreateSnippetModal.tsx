@@ -73,6 +73,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     onclick: '',
     hint: '',
     comments: '',
+    data_table: '',
     client: false,
     newlines_to_html: false,
   });
@@ -1015,6 +1016,18 @@ const handleSubmit = async (e: React.FormEvent) => {
     };
   }
 
+  if (submissionData.artifact_type === 'service_portal_widget') {
+    submissionData = {
+      ...submissionData,
+      data_table: submissionData.data_table?.trim() || '',
+      html: submissionData.html?.trim() || '',
+      css: submissionData.css?.trim() || '',
+      client_script: submissionData.client_script?.trim() || '',
+      server_script: submissionData.server_script?.trim() || '',
+      link: submissionData.link?.trim() || '',
+    };
+  }
+
   setLoading(true);
   console.log('Form submitted, creating snippet...');
 
@@ -1161,6 +1174,22 @@ const handleSubmit = async (e: React.FormEvent) => {
 
             {formData.artifact_type === 'service_portal_widget' && (
               <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Data Table
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.data_table || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, data_table: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="sp_instance, sp_instance_link, etc."
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Service Portal widget table name (e.g., sp_instance_link).
+                  </p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     HTML Template *

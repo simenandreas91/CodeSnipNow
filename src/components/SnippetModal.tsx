@@ -196,6 +196,8 @@ type SnippetEditState = {
   css: string;
   client_script: string;
   server_script: string;
+  data_table: string;
+  link: string;
   option_schema: string;
 };
 
@@ -295,6 +297,8 @@ const buildEditState = (snippet: Snippet): SnippetEditState => ({
   css: snippet.css || '',
   client_script: snippet.client_script || '',
   server_script: snippet.server_script || '',
+  data_table: snippet.data_table || '',
+  link: snippet.link || '',
   option_schema: stringifyOptionSchema(snippet.option_schema)
 });
 
@@ -630,6 +634,8 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         updates.css = editData.css;
         updates.client_script = editData.client_script;
         updates.server_script = editData.server_script;
+        updates.data_table = editData.data_table.trim();
+        updates.link = editData.link;
 
         const optionSchemaInput = (editData.option_schema || '').trim();
         if (optionSchemaInput) {
@@ -862,13 +868,13 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                       {formatWhenValue(isEditing ? editData.when : snippet.when)}
                     </span>
                   )
-                ) : (
-                  <span className="text-purple-300">
-                    {formatWhenValue(isEditing ? editData.when : snippet.when)}
-                  </span>
-                )}
-              </div>
+            ) : (
+              <span className="text-purple-300">
+                {formatWhenValue(isEditing ? editData.when : snippet.when)}
+              </span>
             )}
+          </div>
+        )}
 
             {snippet.artifact_type === 'client_script' && (snippet.field_name || isEditing) && (
               <div className="flex items-center gap-2 text-slate-300">
@@ -884,6 +890,24 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                   />
                 ) : (
                   <span className="text-green-300">{snippet.field_name}</span>
+                )}
+              </div>
+            )}
+
+            {snippet.artifact_type === 'service_portal_widget' && (snippet.data_table || isEditing) && (
+              <div className="flex items-center gap-2 text-slate-300">
+                <Code2 className="h-4 w-4 text-emerald-400" />
+                <span className="font-medium">Data Table:</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.data_table}
+                    onChange={(e) => setEditData(prev => ({ ...prev, data_table: e.target.value }))}
+                    className="bg-white/10 border border-white/20 rounded px-2 py-1 text-emerald-300 text-sm flex-1"
+                    placeholder="sp_instance"
+                  />
+                ) : (
+                  <span className="text-emerald-300">{snippet.data_table}</span>
                 )}
               </div>
             )}
@@ -1273,6 +1297,24 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                 </div>
               )}
 
+              {/* Server Script */}
+              {(snippet.server_script || isEditing) && (
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-white mb-3">Server Script</h4>
+                  {isEditing ? (
+                    <textarea
+                      value={editData.server_script}
+                      onChange={(e) => setEditData(prev => ({ ...prev, server_script: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={10}
+                      placeholder="Server-side JavaScript"
+                    />
+                  ) : (
+                    <CodeBlock code={editData.server_script} language="javascript" />
+                  )}
+                </div>
+              )}
+
               {/* Client Script */}
               {(snippet.client_script || isEditing) && (
                 <div className="mb-6">
@@ -1291,23 +1333,26 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                 </div>
               )}
 
-              {/* Server Script */}
-              {(snippet.server_script || isEditing) && (
+              {/* Link Function */}
+              {(snippet.link || isEditing) && (
                 <div className="mb-6">
-                  <h4 className="text-lg font-semibold text-white mb-3">Server Script</h4>
+                  <h4 className="text-lg font-semibold text-white mb-3">Link Function</h4>
                   {isEditing ? (
                     <textarea
-                      value={editData.server_script}
-                      onChange={(e) => setEditData(prev => ({ ...prev, server_script: e.target.value }))}
+                      value={editData.link}
+                      onChange={(e) => setEditData(prev => ({ ...prev, link: e.target.value }))}
                       className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={10}
-                      placeholder="Server-side JavaScript"
+                      placeholder="function link(scope, element) {\n  // ...\n}"
                     />
+                  ) : snippet.link ? (
+                    <CodeBlock code={snippet.link} language="javascript" />
                   ) : (
-                    <CodeBlock code={editData.server_script} language="javascript" />
+                    <p className="text-slate-500 italic">No link function provided.</p>
                   )}
                 </div>
               )}
+
               {(hasOptionSchema || isEditing) && (
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">

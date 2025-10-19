@@ -46,6 +46,7 @@ export interface Snippet {
   client_script: string;
   server_script: string;
   controller_as: string;
+  data_table: string;
   link: string;
   demo_data: any;
   option_schema: any;
@@ -99,6 +100,7 @@ export interface CreateSnippetData {
   client_script?: string;
   server_script?: string;
   controller_as?: string;
+  data_table?: string;
   link?: string;
   demo_data?: any;
   option_schema?: any;
