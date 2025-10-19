@@ -1,7 +1,5 @@
 "use client";
 
-import React from "react";
-
 import { CodeBlock } from "@/components/ui/code-block";
 
 export function CodeBlockDemo() {
