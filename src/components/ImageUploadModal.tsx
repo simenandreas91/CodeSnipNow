@@ -36,7 +36,8 @@ export function ImageUploadModal({ onClose, onImageUploaded, userId }: ImageUplo
         setError('Failed to upload image');
       }
     } catch (err) {
-      setError('Failed to upload image');
+      const message = err instanceof Error ? err.message : 'Failed to upload image';
+      setError(message);
       console.error('Upload error:', err);
     } finally {
       setUploading(false);

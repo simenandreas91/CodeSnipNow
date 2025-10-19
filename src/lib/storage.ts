@@ -1,6 +1,15 @@
 import { supabase, hasValidSupabaseCredentials } from './supabase';
 
-const SNIPPET_IMAGES_BUCKET = 'snippet-pictures';
+const bucketFromEnv = (import.meta.env.VITE_SUPABASE_SNIPPET_IMAGES_BUCKET || '').trim();
+const SNIPPET_IMAGES_BUCKET = bucketFromEnv || 'snippet-pictures';
+const CUSTOM_PUBLIC_BASE = (import.meta.env.VITE_SUPABASE_STORAGE_PUBLIC_URL || '').replace(/\/$/, '');
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+
+const encodePath = (input: string) =>
+  input
+    .split('/')
+    .map(segment => encodeURIComponent(segment))
+    .join('/');
 
 // Storage helper with Supabase backend and local fallback
 export class StorageService {
@@ -31,25 +40,25 @@ export class StorageService {
 
       if (uploadError) {
         console.error('Error uploading image to Supabase:', uploadError);
-        return this.uploadImageFallback(file, userId);
+        const message =
+          uploadError.message ||
+          uploadError.name ||
+          'Supabase image upload failed';
+        throw new Error(message);
       }
 
-      const { data: publicUrlData, error: urlError } = supabase.storage
-        .from(SNIPPET_IMAGES_BUCKET)
-        .getPublicUrl(filePath);
-
-      if (urlError || !publicUrlData?.publicUrl) {
-        console.error('Error getting public URL for image:', urlError);
-        return this.uploadImageFallback(file, userId);
-      }
+      const publicUrl = this.buildPublicUrl(filePath);
 
       return {
-        url: publicUrlData.publicUrl,
+        url: publicUrl,
         path: filePath
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing image:', error);
-      return this.uploadImageFallback(file, userId);
+      if (error?.message) {
+        throw new Error(error.message);
+      }
+      throw new Error('Failed to upload image');
     }
   }
 
@@ -82,7 +91,11 @@ export class StorageService {
    * Delete an image (no-op for data URLs)
    */
   static async deleteImage(path: string): Promise<boolean> {
-    if (!hasValidSupabaseCredentials || !supabase || path.startsWith('local/')) {
+    if (!path || path.startsWith('local/') || path.startsWith('data:')) {
+      return true;
+    }
+
+    if (!hasValidSupabaseCredentials || !supabase) {
       return true;
     }
 
@@ -106,15 +119,7 @@ export class StorageService {
       return path;
     }
 
-    if (!hasValidSupabaseCredentials || !supabase) {
-      return path;
-    }
-
-    const { data } = supabase.storage
-      .from(SNIPPET_IMAGES_BUCKET)
-      .getPublicUrl(path);
-
-    return data?.publicUrl || path;
+    return this.buildPublicUrl(path);
   }
 
   /**
@@ -143,5 +148,27 @@ export class StorageService {
     }
 
     return images;
+  }
+
+  private static buildPublicUrl(path: string): string {
+    const encodedBucket = encodeURIComponent(SNIPPET_IMAGES_BUCKET);
+    const encodedPath = encodePath(path);
+
+    if (CUSTOM_PUBLIC_BASE) {
+      return `${CUSTOM_PUBLIC_BASE}/${encodedBucket}/${encodedPath}`;
+    }
+
+    if (hasValidSupabaseCredentials && supabase) {
+      const { data } = supabase.storage.from(SNIPPET_IMAGES_BUCKET).getPublicUrl(path);
+      if (data?.publicUrl) {
+        return data.publicUrl;
+      }
+    }
+
+    if (SUPABASE_URL) {
+      return `${SUPABASE_URL}/storage/v1/object/public/${encodedBucket}/${encodedPath}`;
+    }
+
+    return path;
   }
 }
