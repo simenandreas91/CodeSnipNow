@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, ChevronDown, Trash2, Loader2 } from 'lucide-react';
+import { X, Copy, Check, Calendar, User, Tag, Code2, Clock, Zap, Shield, Edit, ChevronDown, Trash2, Loader2, Upload, Image as ImageIcon } from 'lucide-react';
 import { renderMarkdown } from '../lib/markdown';
 import { CodeBlock } from './CodeBlock';
 import type { Snippet } from '../types/snippet';
+import { ImageUploadModal } from './ImageUploadModal';
+import { StorageService } from '../lib/storage';
 
 interface SnippetModalProps {
   snippet: Snippet;
@@ -468,6 +470,10 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
   const [deleting, setDeleting] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [optionSchemaError, setOptionSchemaError] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [showFullscreenImage, setShowFullscreenImage] = useState(false);
+  const [removingImage, setRemovingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const snippetTags = useMemo(() => normalizeTags(snippet.tags), [snippet.tags]);
   const hasOptionSchema = Boolean((editData.option_schema ?? '').trim());
   const supportsOrderField = ORDER_RELEVANT_TYPES.has(snippet.artifact_type);
@@ -575,6 +581,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     setOptionSchemaError(null);
     setSaving(true);
     try {
+      const previousImagePath = snippet.preview_image_path || '';
       const updates: Partial<Snippet> = {
         artifact_type: snippet.artifact_type,
         name: editData.name,
@@ -584,6 +591,15 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         filter_condition: editData.filter_condition,
         tags: editData.tags
       };
+
+      const normalizedPreviewUrl = editData.preview_image_url || '';
+      const normalizedPreviewPath = editData.preview_image_path || '';
+      if (normalizedPreviewUrl !== (snippet.preview_image_url || '')) {
+        updates.preview_image_url = normalizedPreviewUrl || null;
+      }
+      if (normalizedPreviewPath !== (snippet.preview_image_path || '')) {
+        updates.preview_image_path = normalizedPreviewPath || null;
+      }
 
       if (snippet.artifact_type === 'business_rule' || snippet.artifact_type === 'client_script') {
         updates.when = editData.when;
@@ -661,6 +677,15 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
       }
       
       await onUpdateSnippet(snippet.id, updates);
+
+      if (previousImagePath && previousImagePath !== normalizedPreviewPath) {
+        try {
+          await StorageService.deleteImage(previousImagePath);
+        } catch (cleanupError) {
+          console.warn('Failed to delete previous image:', cleanupError);
+        }
+      }
+
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to update snippet:', error);
@@ -694,9 +719,54 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     }));
   };
 
+  const handleImageUploaded = (url: string, path: string) => {
+    setImageError(null);
+    setEditData(prev => ({
+      ...prev,
+      preview_image_url: url,
+      preview_image_path: path
+    }));
+  };
 
+  const handleRemoveImage = async () => {
+    if (removingImage) {
+      return;
+    }
+
+    const originalPath = snippet.preview_image_path || '';
+    const newPath = editData.preview_image_path || '';
+    const pathToDelete = newPath && newPath !== originalPath ? newPath : '';
+
+    if (!pathToDelete && !originalPath && !newPath) {
+      setEditData(prev => ({
+        ...prev,
+        preview_image_url: '',
+        preview_image_path: ''
+      }));
+      return;
+    }
+
+    setRemovingImage(true);
+    setImageError(null);
+    try {
+      if (pathToDelete) {
+        await StorageService.deleteImage(pathToDelete);
+      }
+      setEditData(prev => ({
+        ...prev,
+        preview_image_url: '',
+        preview_image_path: ''
+      }));
+    } catch (error) {
+      console.error('Failed to remove image:', error);
+      setImageError('Failed to remove image. Please try again.');
+    } finally {
+      setRemovingImage(false);
+    }
+  };
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-slate-900/95 backdrop-blur-sm border border-white/20 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b border-white/10">
@@ -789,15 +859,73 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-          {(isEditing ? editData.preview_image_url : snippet.preview_image_url) && (
-            <div className="mb-6 overflow-hidden rounded-xl border border-white/10 bg-black/40">
-              <img
-                src={(isEditing ? editData.preview_image_url : snippet.preview_image_url) || ''}
-                alt={`${snippet.name} preview`}
-                className="h-64 w-full object-cover"
-              />
-            </div>
-          )}
+          <div className="mb-6">
+            {isEditing ? (
+              editData.preview_image_url ? (
+                <div className="relative rounded-xl border border-white/10 bg-black/40 overflow-hidden">
+                  <img
+                    src={editData.preview_image_url}
+                    alt={`${snippet.name} preview`}
+                    className="w-full max-h-[32rem] object-contain bg-black"
+                  />
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowImageModal(true)}
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-white/15 hover:bg-white/25 text-white text-sm rounded-lg transition-colors"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      disabled={removingImage}
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-100 text-sm rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {removingImage ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/20 rounded-xl bg-white/5 p-6">
+                  <ImageIcon className="h-10 w-10 text-slate-400" />
+                  <p className="text-sm text-slate-300 text-center">
+                    Add an optional preview image to showcase this snippet.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowImageModal(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload Image
+                  </button>
+                </div>
+              )
+            ) : (
+              snippet.preview_image_url && (
+                <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                  <img
+                    src={snippet.preview_image_url}
+                    alt={`${snippet.name} preview`}
+                    className="w-full max-h-[32rem] object-contain cursor-zoom-in bg-black"
+                    onClick={() => setShowFullscreenImage(true)}
+                  />
+                </div>
+              )
+            )}
+            {imageError && isEditing && (
+              <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {imageError}
+              </div>
+            )}
+          </div>
           <div className="mb-6">
             {isEditing ? (
               <textarea
@@ -1568,5 +1696,34 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         </div>
       </div>
     </div>
+    {showImageModal && (
+      <ImageUploadModal
+        onClose={() => setShowImageModal(false)}
+        onImageUploaded={(url, path) => {
+          handleImageUploaded(url, path);
+          setShowImageModal(false);
+        }}
+        userId={user?.id || snippet.user_id || 'anonymous'}
+      />
+    )}
+    {showFullscreenImage && snippet.preview_image_url && (
+      <div
+        className="fixed inset-0 z-[999] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+        onClick={() => setShowFullscreenImage(false)}
+      >
+        <button
+          className="absolute top-6 right-6 text-slate-200 hover:text-white transition-colors"
+          onClick={() => setShowFullscreenImage(false)}
+        >
+          <X className="h-8 w-8" />
+        </button>
+        <img
+          src={snippet.preview_image_url}
+          alt={`${snippet.name} preview full size`}
+          className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl border border-white/10"
+        />
+      </div>
+    )}
+    </>
   );
 }

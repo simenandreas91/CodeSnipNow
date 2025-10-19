@@ -56,16 +56,6 @@ export function SnippetCard({ snippet, onClick }: SnippetCardProps) {
       onClick={onClick}
       className="group cursor-pointer backdrop-blur-sm bg-white/10 border border-white/20 rounded-xl p-6 hover:bg-white/15 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-blue-500/10"
     >
-      {snippet.preview_image_url && (
-        <div className="mb-4 overflow-hidden rounded-lg border border-white/10 bg-black/40">
-          <img
-            src={snippet.preview_image_url}
-            alt={`${snippet.name} preview`}
-            className="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        </div>
-      )}
-
       <div className="flex items-start justify-between mb-4">
         <div className={`px-3 py-1 rounded-full text-xs font-medium text-white bg-gradient-to-r ${colorClass}`}>
           {displayLabel}
