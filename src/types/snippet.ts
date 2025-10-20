@@ -61,6 +61,7 @@ export interface Snippet {
   user_id: string;
   preview_image_path?: string | null;
   preview_image_url?: string | null;
+  client_script_v2: string;
 }
 
 export interface CreateSnippetData {
@@ -125,7 +126,7 @@ export interface CreateSnippetData {
   show_query?: boolean;
   show_multiple_update?: boolean;
   client?: boolean;  // UI Action specific field
-  client_script_v2?: boolean;
+  client_script_v2?: string;
   onclick?: string;
   hint?: string;
   comments?: string;

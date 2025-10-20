@@ -45,6 +45,7 @@ const SNIPPET_SELECT_COLUMNS = [
   'html',
   'css',
   'client_script',
+  'client_script_v2',
   'script_include',
   'server_script',
   'controller_as',
@@ -261,6 +262,7 @@ export function useSnippets() {
       html: item.html || '',
       css: item.css || '',
       client_script: item.client_script || '',
+      client_script_v2: item.client_script_v2 || '',
       script_include: item.script_include || '',
       server_script: item.server_script || '',
       controller_as: item.controller_as || '',
@@ -610,6 +612,7 @@ export function useSnippets() {
               active: data.active,
               hint: data.hint,
               onclick: data.onclick,
+              client_script_v2: data.client_script_v2 || '',
               form_button: data.form_button || false,
               form_context_menu: data.form_context_menu || false,
               form_link: data.form_link || false,
@@ -787,6 +790,9 @@ export function useSnippets() {
         }
         
         if (updates.condition) updateData.condition = updates.condition;
+        if (updates.client_script_v2 !== undefined && updates.artifact_type === 'ui_action') {
+          updateData.client_script_v2 = updates.client_script_v2;
+        }
         if (updates.script_include !== undefined && updates.artifact_type === 'client_script') {
           updateData.script_include = updates.script_include;
         }
