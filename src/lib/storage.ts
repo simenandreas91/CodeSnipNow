@@ -43,7 +43,7 @@ export class StorageService {
         const message =
           uploadError.message ||
           uploadError.name ||
-          'Supabase image upload failed';
+          'Supabase image upload failedd';
         throw new Error(message);
       }
 
