@@ -199,6 +199,7 @@ type SnippetEditState = {
   client_script: string;
   server_script: string;
   data_table: string;
+  field_list: string;
   link: string;
   option_schema: string;
   preview_image_url: string;
@@ -302,6 +303,7 @@ const buildEditState = (snippet: Snippet): SnippetEditState => ({
   client_script: snippet.client_script || '',
   server_script: snippet.server_script || '',
   data_table: snippet.data_table || '',
+  field_list: snippet.field_list || '',
   link: snippet.link || '',
   option_schema: stringifyOptionSchema(snippet.option_schema),
   preview_image_url: snippet.preview_image_url || '',
@@ -655,6 +657,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         updates.client_script = editData.client_script;
         updates.server_script = editData.server_script;
         updates.data_table = editData.data_table.trim();
+        updates.field_list = editData.field_list.trim();
         updates.link = editData.link;
 
         const optionSchemaInput = (editData.option_schema || '').trim();
@@ -1402,6 +1405,25 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
           {/* Service Portal Widget specific sections */}
           {snippet.artifact_type === 'service_portal_widget' && (
             <>
+              {(snippet.field_list || isEditing) && (
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-white mb-3">Field List</h4>
+                  {isEditing ? (
+                    <textarea
+                      value={editData.field_list}
+                      onChange={(e) => setEditData(prev => ({ ...prev, field_list: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={4}
+                      placeholder="Type, HREF / URL, Catalog category, Catalog item, ..."
+                    />
+                  ) : (
+                    <div className="bg-slate-800/50 rounded-lg p-4 border border-emerald-500/20 text-emerald-200 text-sm whitespace-pre-wrap leading-relaxed">
+                      {snippet.field_list}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* HTML Template */}
               {(snippet.html || isEditing) && (
                 <div className="mb-6">

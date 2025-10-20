@@ -78,6 +78,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     hint: '',
     comments: '',
     data_table: '',
+    field_list: '',
     client: false,
     newlines_to_html: false,
     preview_image_path: null,
@@ -1063,6 +1064,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     submissionData = {
       ...submissionData,
       data_table: submissionData.data_table?.trim() || '',
+      field_list: submissionData.field_list?.trim() || '',
       html: submissionData.html?.trim() || '',
       css: submissionData.css?.trim() || '',
       client_script: submissionData.client_script?.trim() || '',
@@ -1288,6 +1290,22 @@ const handleSubmit = async (e: React.FormEvent) => {
                   />
                   <p className="text-xs text-slate-400 mt-1">
                     Service Portal widget table name (e.g., sp_instance_link).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Field List
+                  </label>
+                  <textarea
+                    value={formData.field_list || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, field_list: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Type, HREF / URL, Catalog category, Catalog item, ..."
+                    rows={3}
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Comma-separated list of instance fields exposed by the widget.
                   </p>
                 </div>
 

@@ -71,6 +71,8 @@ const TABLE_SELECT_COLUMNS: Record<string, string> = {
     'client_script',
     'server_script',
     'controller_as',
+    'data_table',
+    'field_list',
     'link',
     'demo_data',
     'option_schema',
@@ -262,6 +264,8 @@ export function useSnippets() {
       script_include: item.script_include || '',
       server_script: item.server_script || '',
       controller_as: item.controller_as || '',
+      data_table: item.data_table || '',
+      field_list: item.field_list || '',
       link: item.link || '',
       demo_data: item.demo_data || null,
       option_schema: item.option_schema || null,
@@ -532,6 +536,8 @@ export function useSnippets() {
           client_script: data.client_script || '',
           server_script: data.server_script || '',
           controller_as: data.controller_as || null,
+          data_table: data.data_table?.trim() || null,
+          field_list: data.field_list?.trim() || null,
           link: data.link || null,
           option_schema: data.option_schema ?? {},
           demo_data: data.demo_data ?? {},
@@ -732,6 +738,8 @@ export function useSnippets() {
         if (updates.client_script !== undefined) updateData.client_script = updates.client_script;
         if (updates.server_script !== undefined) updateData.server_script = updates.server_script;
         if (updates.controller_as !== undefined) updateData.controller_as = updates.controller_as;
+        if (updates.data_table !== undefined) updateData.data_table = updates.data_table;
+        if (updates.field_list !== undefined) updateData.field_list = updates.field_list;
         if (updates.link !== undefined) updateData.link = updates.link;
         if (updates.option_schema !== undefined) updateData.option_schema = updates.option_schema;
         if (updates.demo_data !== undefined) updateData.demo_data = updates.demo_data;
