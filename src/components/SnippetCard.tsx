@@ -45,6 +45,8 @@ const ARTIFACT_TYPE_LABELS = {
 export function SnippetCard({ snippet, onClick }: SnippetCardProps) {
   const colorClass = ARTIFACT_TYPE_COLORS[snippet.artifact_type as keyof typeof ARTIFACT_TYPE_COLORS] || ARTIFACT_TYPE_COLORS.other;
   const typeLabel = ARTIFACT_TYPE_LABELS[snippet.artifact_type as keyof typeof ARTIFACT_TYPE_LABELS] || 'Other';
+  const isClientScript = snippet.artifact_type === 'client_script';
+  const isCatalogClientScript = snippet.artifact_type === 'catalog_client_script';
   
   // For integrations and core ServiceNow APIs, display the subtype if available, otherwise fall back to the main type label
   const displayLabel = ['integrations', 'core_servicenow_apis', 'specialized_areas'].includes(snippet.artifact_type) && snippet.subtype
@@ -92,7 +94,7 @@ export function SnippetCard({ snippet, onClick }: SnippetCardProps) {
         </div>
       )}
 
-      {snippet.when && snippet.artifact_type === 'client_script' && (
+      {snippet.when && (isClientScript || isCatalogClientScript) && (
         <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
           <Clock className="h-3 w-3" />
           <span>Type: {snippet.when}</span>
@@ -127,10 +129,25 @@ export function SnippetCard({ snippet, onClick }: SnippetCardProps) {
         </div>
       )}
 
-      {snippet.ui_type_code !== undefined && snippet.artifact_type === 'client_script' && (
+      {isClientScript && (snippet.ui_type_code !== undefined || snippet.ui_type) && (
         <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
           <Clock className="h-3 w-3" />
-          <span>UI: {snippet.ui_type_code === 10 ? 'Desktop' : snippet.ui_type_code === 1 ? 'Mobile' : 'All'}</span>
+          <span>
+            UI: {snippet.ui_type && snippet.ui_type.trim().length > 0
+              ? snippet.ui_type
+              : snippet.ui_type_code === 10
+                ? 'Desktop'
+                : snippet.ui_type_code === 1
+                  ? 'Mobile'
+                  : 'All'}
+          </span>
+        </div>
+      )}
+
+      {isCatalogClientScript && snippet.ui_type && (
+        <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+          <Clock className="h-3 w-3" />
+          <span>UI: {snippet.ui_type}</span>
         </div>
       )}
 

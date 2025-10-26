@@ -174,6 +174,7 @@ type SnippetEditState = {
   when: string;
   field_name: string;
   ui_type_code: string;
+  ui_type: string;
   messages: string;
   global: boolean;
   applies_extended: boolean;
@@ -276,9 +277,10 @@ const buildEditState = (snippet: Snippet): SnippetEditState => ({
   script_include: snippet.script_include || '',
   collection: snippet.collection || '',
   condition: snippet.condition || '',
-  when: snippet.when || (snippet.artifact_type === 'client_script' ? 'onLoad' : ''),
+  when: snippet.when || (['client_script', 'catalog_client_script'].includes(snippet.artifact_type) ? 'onLoad' : ''),
   field_name: snippet.field_name || '',
   ui_type_code: snippet.ui_type_code !== undefined ? String(snippet.ui_type_code) : '0',
+  ui_type: snippet.ui_type || '',
   messages: snippet.messages || '',
   global: snippet.global || false,
   applies_extended: snippet.applies_extended || false,
@@ -483,6 +485,9 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
   const hasOptionSchema = Boolean((editData.option_schema ?? '').trim());
   const supportsOrderField = ORDER_RELEVANT_TYPES.has(snippet.artifact_type);
   const supportsPriorityField = PRIORITY_RELEVANT_TYPES.has(snippet.artifact_type);
+  const isClientScript = snippet.artifact_type === 'client_script';
+  const isCatalogClientScript = snippet.artifact_type === 'catalog_client_script';
+  const isAnyClientScript = isClientScript || isCatalogClientScript;
 
   // Update editData when snippet prop changes
   useEffect(() => {
@@ -494,10 +499,24 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
 
   const formatWhenValue = (value?: string) => {
     if (!value) return 'Not set';
-    if (snippet.artifact_type === 'client_script') {
+    if (isAnyClientScript) {
       return value.charAt(0).toUpperCase() + value.slice(1);
     }
     return value;
+  };
+  const getUiTypeDisplay = () => {
+    if (isClientScript) {
+      if (snippet.ui_type && snippet.ui_type.trim().length > 0) {
+        return snippet.ui_type;
+      }
+      if (snippet.ui_type_code === 10) return 'Desktop (10)';
+      if (snippet.ui_type_code === 1) return 'Mobile (1)';
+      return 'All (0)';
+    }
+    if (isCatalogClientScript) {
+      return snippet.ui_type && snippet.ui_type.trim().length > 0 ? snippet.ui_type : 'Not set';
+    }
+    return 'Not set';
   };
 
   const parseNumericInput = (value?: string) => {
@@ -654,7 +673,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         updates.action_query = editData.runsOnQuery === 'true';
       }
 
-      if (snippet.artifact_type === 'client_script') {
+      if (isClientScript) {
         updates.field_name = editData.field_name.trim();
         updates.messages = editData.messages;
         updates.global = editData.global;
@@ -663,6 +682,16 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         const parsedUiType = parseInt(editData.ui_type_code, 10);
         updates.ui_type_code = Number.isNaN(parsedUiType) ? 0 : parsedUiType;
         updates.active = editData.active;
+        if (editData.ui_type.trim().length > 0) {
+          updates.ui_type = editData.ui_type.trim();
+        }
+      }
+
+      if (isCatalogClientScript) {
+        updates.active = editData.active;
+        if (editData.ui_type.trim().length > 0) {
+          updates.ui_type = editData.ui_type.trim();
+        }
       }
 
       if (snippet.artifact_type === 'script_include') {
@@ -704,8 +733,12 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         }
       } else {
         updates.script = editData.script;
-        if (snippet.artifact_type === 'client_script') {
+        if (isAnyClientScript) {
           updates.script_include = editData.script_include;
+          const trimmedUiType = editData.ui_type.trim();
+          if (trimmedUiType.length > 0) {
+            updates.ui_type = trimmedUiType;
+          }
         }
       }
       
@@ -1022,7 +1055,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-200" />
                   </div>
-                  ) : snippet.artifact_type === 'client_script' ? (
+                  ) : isAnyClientScript ? (
                     <div className="relative">
                       <select
                         value={editData.when || 'onLoad'}
@@ -1086,31 +1119,37 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
               </div>
             )}
 
-            {snippet.artifact_type === 'client_script' && (snippet.ui_type_code !== undefined || isEditing) && (
+            {isAnyClientScript && (
               <div className="flex items-center gap-2 text-slate-300">
                 <Shield className="h-4 w-4 text-cyan-400" />
                 <span className="font-medium">UI Type:</span>
                 {isEditing ? (
-                  <div className="relative">
-                    <select
-                      value={editData.ui_type_code || '0'}
-                      onChange={(e) => setEditData(prev => ({ ...prev, ui_type_code: e.target.value }))}
-                      className="appearance-none bg-slate-900/80 border border-cyan-500/40 rounded px-3 py-2 pr-10 text-cyan-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-colors"
-                    >
-                      {CLIENT_SCRIPT_UI_TYPE_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value} className="bg-slate-900 text-cyan-100">
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200" />
-                  </div>
+                  isClientScript ? (
+                    <div className="relative">
+                      <select
+                        value={editData.ui_type_code || '0'}
+                        onChange={(e) => setEditData(prev => ({ ...prev, ui_type_code: e.target.value }))}
+                        className="appearance-none bg-slate-900/80 border border-cyan-500/40 rounded px-3 py-2 pr-10 text-cyan-100 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-colors"
+                      >
+                        {CLIENT_SCRIPT_UI_TYPE_OPTIONS.map(option => (
+                          <option key={option.value} value={option.value} className="bg-slate-900 text-cyan-100">
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200" />
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={editData.ui_type}
+                      onChange={(e) => setEditData(prev => ({ ...prev, ui_type: e.target.value }))}
+                      className="bg-white/10 border border-white/20 rounded px-2 py-1 text-cyan-200 text-sm flex-1"
+                      placeholder="e.g. record_producer"
+                    />
+                  )
                 ) : (
-                  <span className="text-cyan-300">
-                    {snippet.ui_type_code === 10 ? 'Desktop (10)' : 
-                     snippet.ui_type_code === 1 ? 'Mobile (1)' : 
-                     'All (0)'}
-                  </span>
+                  <span className="text-cyan-300">{getUiTypeDisplay()}</span>
                 )}
               </div>
             )}
@@ -1633,7 +1672,7 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
             </div>
           )}
 
-          {snippet.artifact_type === 'client_script' ? (
+          {isAnyClientScript ? (
             <div className="mb-6 space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-3">

@@ -8,61 +8,11 @@ const ITEMS_PER_PAGE = 12;
 
 const CACHE_TTL_MS = 60 * 1000;
 
-const SNIPPET_SELECT_COLUMNS = [
-  'id',
-  'title',
-  'description',
-  'code',
-  'type',
-  'collection',
-  'table_name',
-  'condition',
-  'filter_condition',
-  'when_to_run',
-  'script_type',
-  'order_value',
-  'priority',
-  'action_insert',
-  'action_update',
-  'action_delete',
-  'action_query',
-  'active',
-  'advanced',
-  'field_name',
-  'global',
-  'isolate_script',
-  'applies_extended',
-  'messages',
-  'view',
-  'ui_type_code',
-  'api_name',
-  'client_callable',
-  'access_level',
-  'caller_access',
-  'mobile_callable',
-  'sandbox_callable',
-  'sys_policy',
-  'html',
-  'css',
-  'client_script',
-  'client_script_v2',
-  'script_include',
-  'server_script',
-  'controller_as',
-  'link',
-  'demo_data',
-  'option_schema',
-  'repo_path',
-  'preview_image_path',
-  'preview_image_url',
-  'tags',
-  'author_id',
-  'is_public',
-  'created_at',
-  'updated_at'
-].join(', ');
+const SNIPPET_SELECT_COLUMNS = '*';
 
 const TABLE_SELECT_COLUMNS: Record<string, string> = {
+  client_scripts: '*',
+  catalog_client_scripts: '*',
   service_portal_widgets: [
     'id',
     'title',
@@ -88,6 +38,8 @@ const TABLE_SELECT_COLUMNS: Record<string, string> = {
 };
 
 const TABLE_SEARCH_COLUMNS: Record<string, string[]> = {
+  client_scripts: ['title', 'description', 'client_script', 'script_include', 'type'],
+  catalog_client_scripts: ['title', 'description', 'client_script', 'script_include', 'type'],
   service_portal_widgets: ['title', 'description', 'html', 'client_script', 'server_script']
 };
 
@@ -165,7 +117,7 @@ export function useSnippets() {
 
     const trimmedQuery = query.trim();
     const selectColumns = TABLE_SELECT_COLUMNS[table] ?? SNIPPET_SELECT_COLUMNS;
-    const searchColumns = TABLE_SEARCH_COLUMNS[table] ?? ['title', 'description', 'code'];
+    const searchColumns = TABLE_SEARCH_COLUMNS[table] ?? ['title', 'description'];
 
     const runQuery = (columns: string) => {
       let builder = client.from(table).select(columns, { count: 'exact' });
@@ -223,65 +175,81 @@ export function useSnippets() {
 
   const mapDatabaseToSnippet = (data: any[], artifactType: string): Snippet[] => {
     const normalizeFlag = (value: any) => value === true || value === 'true' || value === 1 || value === '1';
-    return data.map((item: any) => ({
-      id: String(item.id),
-      name: item.title || '',
-      description: item.description || '',
-      script: artifactType === 'service_portal_widget' ? (item.server_script || '') : (item.code || ''),
-      artifact_type: artifactType,
-      subtype: ['integrations', 'core_servicenow_apis', 'specialized_areas'].includes(artifactType) ? item.type : undefined,
-      collection: item.collection || item.table_name || '',
-      condition: item.condition || '',
-      filter_condition: item.filter_condition || '',
-      when: item.when_to_run || item.script_type || '',
-      order: item.order_value || 100,
-      priority: item.priority || 100,
-      action_insert: normalizeFlag(item.action_insert),
-      action_update: normalizeFlag(item.action_update),
-      action_delete: normalizeFlag(item.action_delete),
-      action_query: normalizeFlag(item.action_query),
-      active: item.active !== false,
-      advanced: item.advanced || false,
-      field_name: item.field_name || '',
-      global: item.global || false,
-      isolate_script: item.isolate_script !== false,
-      applies_extended: item.applies_extended || false,
-      messages: item.messages || '',
-      order_value: item.order_value || 100,
-      view: item.view || '',
-      ui_type_code: item.ui_type_code || 10,
-      // Script Include specific fields
-      api_name: item.api_name || '',
-      client_callable: item.client_callable || false,
-      access_level: item.access_level || 'package_private',
-      caller_access: item.caller_access || '',
-      mobile_callable: item.mobile_callable || false,
-      sandbox_callable: item.sandbox_callable || false,
-      sys_policy: item.sys_policy || '',
-      // Service Portal Widget specific fields
-      html: item.html || '',
-      css: item.css || '',
-      client_script: item.client_script || '',
-      client_script_v2: item.client_script_v2 || '',
-      script_include: item.script_include || '',
-      server_script: item.server_script || '',
-      controller_as: item.controller_as || '',
-      data_table: item.data_table || '',
-      field_list: item.field_list || '',
-      link: item.link || '',
-      demo_data: item.demo_data || null,
-      option_schema: item.option_schema || null,
-      repo_path: item.repo_path || '',
-      preview_image_path: item.preview_image_path || null,
-      preview_image_url: item.preview_image_url
-        || (item.preview_image_path ? StorageService.getImageUrl(item.preview_image_path) : null),
-      tags: item.tags || [],
-      created_by: 'User',
-      created_at: item.created_at,
-      updated_at: item.updated_at || item.created_at,
-      sys_id: String(item.id),
-      user_id: item.author_id
-    }));
+    return data.map((item: any) => {
+      const resolvedScript =
+        artifactType === 'service_portal_widget'
+          ? (item.server_script || '')
+          : (item.client_script ?? item.code ?? '');
+      const resolvedCollection = item.collection ?? item.table ?? item.table_name ?? '';
+      const resolvedWhen = item.when_to_run ?? item.type ?? item.script_type ?? '';
+      const resolvedUiTypeCode =
+        typeof item.ui_type_code === 'number'
+          ? item.ui_type_code
+          : artifactType === 'client_script'
+            ? 10
+            : undefined;
+
+      return {
+        id: String(item.id),
+        name: item.title || '',
+        description: item.description || '',
+        script: resolvedScript,
+        artifact_type: artifactType,
+        subtype: ['integrations', 'core_servicenow_apis', 'specialized_areas'].includes(artifactType) ? item.type : undefined,
+        collection: resolvedCollection,
+        condition: item.condition || '',
+        filter_condition: item.filter_condition || '',
+        when: resolvedWhen,
+        order: item.order_value || 100,
+        priority: item.priority || 100,
+        action_insert: normalizeFlag(item.action_insert),
+        action_update: normalizeFlag(item.action_update),
+        action_delete: normalizeFlag(item.action_delete),
+        action_query: normalizeFlag(item.action_query),
+        active: item.active !== false,
+        advanced: item.advanced || false,
+        field_name: item.field_name || '',
+        global: item.global || false,
+        isolate_script: item.isolate_script !== false,
+        applies_extended: item.applies_extended || false,
+        messages: item.messages || '',
+        order_value: item.order_value || 100,
+        view: item.view || '',
+        ui_type_code: resolvedUiTypeCode,
+        ui_type: typeof item.ui_type === 'string' && item.ui_type.trim().length > 0 ? item.ui_type.trim() : undefined,
+        // Script Include specific fields
+        api_name: item.api_name || '',
+        client_callable: item.client_callable || false,
+        access_level: item.access_level || 'package_private',
+        caller_access: item.caller_access || '',
+        mobile_callable: item.mobile_callable || false,
+        sandbox_callable: item.sandbox_callable || false,
+        sys_policy: item.sys_policy || '',
+        // Service Portal Widget specific fields
+        html: item.html || '',
+        css: item.css || '',
+        client_script: item.client_script || '',
+        client_script_v2: item.client_script_v2 || '',
+        script_include: item.script_include || '',
+        server_script: item.server_script || '',
+        controller_as: item.controller_as || '',
+        data_table: item.data_table || '',
+        field_list: item.field_list || '',
+        link: item.link || '',
+        demo_data: item.demo_data || null,
+        option_schema: item.option_schema || null,
+        repo_path: item.repo_path || '',
+        preview_image_path: item.preview_image_path || null,
+        preview_image_url: item.preview_image_url
+          || (item.preview_image_path ? StorageService.getImageUrl(item.preview_image_path) : null),
+        tags: item.tags || [],
+        created_by: 'User',
+        created_at: item.created_at,
+        updated_at: item.updated_at || item.created_at,
+        sys_id: String(item.id),
+        user_id: item.author_id
+      };
+    });
   };
 
 
@@ -461,9 +429,12 @@ export function useSnippets() {
       }
 
       // Build query to check for duplicates
-      const duplicateSelect = data.artifact_type === 'service_portal_widget'
-        ? 'id, title, server_script, html'
-        : 'id, title, code';
+      let duplicateSelect = 'id, title, code';
+      if (data.artifact_type === 'service_portal_widget') {
+        duplicateSelect = 'id, title, server_script, html';
+      } else if (data.artifact_type === 'client_script' || data.artifact_type === 'catalog_client_script') {
+        duplicateSelect = 'id, title, client_script';
+      }
 
       let query = supabase
         .from(artifactConfig.table)
@@ -493,8 +464,16 @@ export function useSnippets() {
           return existingServerNormalized === newServerNormalized && existingHtmlNormalized === newHtmlNormalized;
         }
 
-        const existingCodeNormalized = normalize(existing.code);
-        const newCodeNormalized = normalize(data.script);
+        const existingCodeNormalized = normalize(
+          (data.artifact_type === 'client_script' || data.artifact_type === 'catalog_client_script')
+            ? existing.client_script
+            : existing.code
+        );
+        const newCodeNormalized = normalize(
+          (data.artifact_type === 'client_script' || data.artifact_type === 'catalog_client_script')
+            ? data.client_script
+            : data.script
+        );
 
         return existingCodeNormalized === newCodeNormalized;
       }
@@ -548,17 +527,30 @@ export function useSnippets() {
         };
       } else {
         // Prepare base data for other artifact types
-        const baseData = {
+        const baseData: Record<string, any> = {
           title: data.name,
           description: data.description,
-          code: data.script,
           tags: data.tags,
           is_public: true,
           author_id: userId
         };
 
+        if (data.artifact_type === 'client_script' || data.artifact_type === 'catalog_client_script') {
+          baseData.client_script = data.client_script ?? data.script ?? '';
+          baseData.script_include = data.script_include ?? '';
+        } else {
+          baseData.code = data.script;
+        }
+
         // Prepare specific data based on artifact type
         let specificData: Record<string, any> = {};
+        const resolvedUiType = data.ui_type ?? (data.ui_type_code === 10
+          ? 'Desktop'
+          : data.ui_type_code === 1
+            ? 'Mobile'
+            : data.ui_type_code === 0
+              ? 'All'
+              : undefined);
 
         switch (data.artifact_type) {
           case 'business_rule':
@@ -579,8 +571,8 @@ export function useSnippets() {
             break;
           case 'client_script':
             specificData = {
-              table_name: data.collection,
-              script_type: data.when || 'onLoad',
+              table: data.collection,
+              type: data.when || 'onLoad',
               condition: data.condition,
               active: data.active,
               field_name: data.field_name,
@@ -590,8 +582,16 @@ export function useSnippets() {
               messages: data.messages,
               order_value: data.order_value,
               view: data.view,
-              ui_type_code: data.ui_type_code,
-              script_include: data.script_include || ''
+              ...(typeof data.ui_type_code === 'number' ? { ui_type_code: data.ui_type_code } : {}),
+              ...(resolvedUiType ? { ui_type: resolvedUiType } : {})
+            };
+            break;
+          case 'catalog_client_script':
+            specificData = {
+              table: data.collection,
+              type: data.when || 'onLoad',
+              active: data.active,
+              ...(resolvedUiType ? { ui_type: resolvedUiType } : {})
             };
             break;
           case 'script_include':
@@ -722,7 +722,11 @@ export function useSnippets() {
       if (updates.name) updateData.title = updates.name;
       if (updates.description) updateData.description = updates.description;
       if (updates.script && updates.artifact_type !== 'service_portal_widget') {
-        updateData.code = updates.script;
+        if (updates.artifact_type === 'client_script' || updates.artifact_type === 'catalog_client_script') {
+          updateData.client_script = updates.script;
+        } else {
+          updateData.code = updates.script;
+        }
       }
       if (updates.tags && updates.artifact_type !== 'service_portal_widget') {
         updateData.tags = updates.tags;
@@ -748,9 +752,14 @@ export function useSnippets() {
         if (updates.demo_data !== undefined) updateData.demo_data = updates.demo_data;
       } else {
         // Handle other artifact-specific fields
+        if (updates.client_script !== undefined && ['client_script', 'catalog_client_script'].includes(updates.artifact_type)) {
+          updateData.client_script = updates.client_script;
+        }
         if (updates.collection) {
           if (['business_rule', 'transform_map'].includes(updates.artifact_type)) {
             updateData.collection = updates.collection;
+          } else if (['client_script', 'catalog_client_script'].includes(updates.artifact_type)) {
+            updateData.table = updates.collection;
           } else {
             updateData.table_name = updates.collection;
           }
@@ -759,8 +768,8 @@ export function useSnippets() {
         if (updates.when) {
           if (updates.artifact_type === 'business_rule') {
             updateData.when_to_run = updates.when;
-          } else if (updates.artifact_type === 'client_script') {
-            updateData.script_type = updates.when;
+          } else if (updates.artifact_type === 'client_script' || updates.artifact_type === 'catalog_client_script') {
+            updateData.type = updates.when;
           }
         }
 
@@ -793,7 +802,7 @@ export function useSnippets() {
         if (updates.client_script_v2 !== undefined && updates.artifact_type === 'ui_action') {
           updateData.client_script_v2 = updates.client_script_v2;
         }
-        if (updates.script_include !== undefined && updates.artifact_type === 'client_script') {
+        if (updates.script_include !== undefined && ['client_script', 'catalog_client_script'].includes(updates.artifact_type)) {
           updateData.script_include = updates.script_include;
         }
         if (updates.field_name !== undefined && updates.artifact_type === 'client_script') {
@@ -813,6 +822,9 @@ export function useSnippets() {
         }
         if (updates.messages !== undefined && updates.artifact_type === 'client_script') {
           updateData.messages = updates.messages;
+        }
+        if (updates.ui_type !== undefined && ['client_script', 'catalog_client_script'].includes(updates.artifact_type)) {
+          updateData.ui_type = updates.ui_type;
         }
         if (updates.api_name !== undefined && updates.artifact_type === 'script_include') {
           updateData.api_name = updates.api_name;

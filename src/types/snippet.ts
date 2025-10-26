@@ -31,7 +31,8 @@ export interface Snippet {
   messages: string;
   order_value: number;
   view: string;
-  ui_type_code: number;
+  ui_type_code?: number;
+  ui_type?: string;
   // Script Include specific fields
   api_name: string;
   client_callable: boolean;
@@ -90,6 +91,7 @@ export interface CreateSnippetData {
   order_value?: number;
   view?: string;
   ui_type_code?: number;
+  ui_type?: string;
   // Script Include specific fields
   api_name?: string;
   client_callable?: boolean;
@@ -153,6 +155,12 @@ export const ARTIFACT_TYPES: ArtifactType[] = [
     label: 'Client Script',
     value: 'client_script',
     table: 'client_scripts',
+    icon: 'code'
+  },
+  {
+    label: 'Catalog Client Script',
+    value: 'catalog_client_script',
+    table: 'catalog_client_scripts',
     icon: 'code'
   },
   {
