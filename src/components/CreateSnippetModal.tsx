@@ -99,7 +99,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
   const renderScriptTextarea = (
     label: string,
     placeholder: string,
-    required = true,
+    _required = true,
     rows = 10,
     field: 'script' | 'script_include' = 'script'
   ) => (
@@ -113,7 +113,6 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
         className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder={placeholder}
         rows={rows}
-        required={required}
       />
     </div>
   );
@@ -190,7 +189,6 @@ const renderArtifactFields = (): React.ReactNode => {
                 onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="User [sys_user]"
-                required
               />
             </div>
             <div>
@@ -218,7 +216,6 @@ const renderArtifactFields = (): React.ReactNode => {
                 value={formData.when || 'onLoad'}
                 onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
               >
                 <option value="onLoad" className="bg-slate-800">onLoad</option>
                 <option value="onChange" className="bg-slate-800">onChange</option>
@@ -329,7 +326,6 @@ const renderArtifactFields = (): React.ReactNode => {
                 onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Incident [incident]"
-                required
               />
             </div>
             <div>
@@ -340,7 +336,6 @@ const renderArtifactFields = (): React.ReactNode => {
                 value={formData.when || 'before'}
                 onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
               >
                 <option value="before" className="bg-slate-800">Before</option>
                 <option value="after" className="bg-slate-800">After</option>
@@ -478,7 +473,6 @@ const renderArtifactFields = (): React.ReactNode => {
                 onChange={(e) => setFormData(prev => ({ ...prev, api_name: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="MyScriptInclude"
-                required
               />
               <p className="text-xs text-slate-400 mt-1">
                 Used when calling this script include.
@@ -568,7 +562,6 @@ const renderArtifactFields = (): React.ReactNode => {
                 onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Incident [incident]"
-                required
               />
             </div>
             <div>
@@ -698,7 +691,6 @@ const renderArtifactFields = (): React.ReactNode => {
               list="specialized-area-type-options"
               className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g., Platform Security, ITSM, Analytics"
-              required
             />
             {specializedAreaTypesLoading ? (
               <p className="text-xs text-slate-400 mt-1">Loading type suggestions...</p>
@@ -835,7 +827,7 @@ const renderArtifactFields = (): React.ReactNode => {
       try {
         const { data, error } = await supabase
           .from('specialized_areas')
-          .select<{ type: string | null }>('type')
+          .select('type')
           .eq('is_public', true);
 
         if (error) {
@@ -896,7 +888,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
       
       // Extract data from ServiceNow XML export
-      let element = xmlDoc.querySelector('sys_script') || 
+      const element = xmlDoc.querySelector('sys_script') || 
                     xmlDoc.querySelector('sys_script_include') || 
                     xmlDoc.querySelector('sys_ui_action') ||
                     xmlDoc.querySelector('sys_script_client') ||
@@ -921,7 +913,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
           collection: extractValue('collection') || extractValue('table') || extractValue('table_name'),
           condition: extractValue('condition'),
           filter_condition: extractValue('filter_condition'),
-          when: extractValue('when') || extractValue('type'),
+          when: extractValue('when') || extractValue('event') || extractValue('type'),
           order: parseInt(extractValue('order')) || 100,
           priority: parseInt(extractValue('priority')) || 100,
           action_insert: extractValue('action_insert') === 'true',
@@ -983,7 +975,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
           });
         }
       }
-    } catch (err) {
+    } catch {
       setError('Failed to parse XML file. Please check the format.');
     }
   };
@@ -1061,62 +1053,6 @@ const handleSubmit = async (e: React.FormEvent) => {
   setError('');
   setOptionSchemaError('');
   setDemoDataError('');
-
-  // Validation for widget
-  if (formData.artifact_type === 'service_portal_widget') {
-    if (!formData.html?.trim()) {
-      setError('HTML Template is required for Service Portal Widgets.');
-      return;
-    }
-    if (optionSchemaError || demoDataError) {
-      setError('Please fix JSON errors in Option Schema or Demo Data.');
-      return;
-    }
-  }
-
-  if (formData.artifact_type === 'client_script') {
-    if (!formData.collection?.trim()) {
-      setError('Table is required for Client Scripts.');
-      return;
-    }
-    if (!(formData.when?.trim())) {
-      setError('Type is required for Client Scripts.');
-      return;
-    }
-  }
-
-  if (formData.artifact_type === 'business_rule') {
-    if (!formData.collection?.trim()) {
-      setError('Table is required for Business Rules.');
-      return;
-    }
-    if (!(formData.when?.trim())) {
-      setError('When is required for Business Rules.');
-      return;
-    }
-  }
-
-  if (formData.artifact_type === 'script_include') {
-    const apiCandidate = formData.api_name?.trim() || formData.name.replace(/\s+/g, '');
-    if (!apiCandidate) {
-      setError('API Name is required for Script Includes.');
-      return;
-    }
-  }
-
-  if (formData.artifact_type === 'ui_action') {
-    if (!formData.collection?.trim()) {
-      setError('Table is required for UI Actions.');
-      return;
-    }
-  }
-
-  if (formData.artifact_type === 'specialized_areas') {
-    if (!formData.type?.trim()) {
-      setError('Type is required for Specialized Areas snippets.');
-      return;
-    }
-  }
 
   let submissionData: CreateSnippetData = { ...formData };
 
@@ -1212,9 +1148,9 @@ const handleSubmit = async (e: React.FormEvent) => {
     await onCreateSnippet(submissionData, user.id);
     console.log('Snippet created successfully, closing modal...');
     onClose();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error creating snippet:', err);
-    const errorMessage = err.message || 'Failed to create snippet';
+    const errorMessage = err instanceof Error ? err.message : 'Failed to create snippet';
     setError(errorMessage);
     console.error('Setting error message:', errorMessage);
   } finally {
@@ -1222,22 +1158,22 @@ const handleSubmit = async (e: React.FormEvent) => {
     console.log('Create snippet process completed');
   }
 };
-  const handleOptionSchemaChange = (value: string) => {
+const handleOptionSchemaChange = (value: string) => {
     try {
       const parsed = value ? JSON.parse(value) : {};
       setFormData(prev => ({ ...prev, option_schema: parsed }));
       setOptionSchemaError('');
-    } catch (err) {
+    } catch {
       setOptionSchemaError('Invalid JSON format');
     }
   };
 
-  const handleDemoDataChange = (value: string) => {
+const handleDemoDataChange = (value: string) => {
     try {
       const parsed = value ? JSON.parse(value) : {};
       setFormData(prev => ({ ...prev, demo_data: parsed }));
       setDemoDataError('');
-    } catch (err) {
+    } catch {
       setDemoDataError('Invalid JSON format');
     }
   };
@@ -1307,12 +1243,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter snippet name"
-                  required
-                />
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter snippet name"
+              />
               </div>
 
               <div>
@@ -1320,11 +1255,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   Artifact Type *
                 </label>
                 <select
-                  value={formData.artifact_type}
-                  onChange={(e) => handleArtifactTypeChange(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
+                value={formData.artifact_type}
+                onChange={(e) => handleArtifactTypeChange(e.target.value)}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
                   {ARTIFACT_TYPES.map(type => (
                     <option key={type.value} value={type.value} className="bg-slate-800">
                       {type.label}
@@ -1344,7 +1278,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Describe what this snippet does"
                 rows={3}
-                required
               />
             </div>
 
@@ -1446,13 +1379,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     HTML Template *
                   </label>
                   <textarea
-                    value={formData.html || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, html: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="<div>Widget HTML template</div>"
-                    rows={6}
-                    required
-                  />
+                value={formData.html || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, html: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="<div>Widget HTML template</div>"
+                rows={6}
+              />
                 </div>
 
                 <div>

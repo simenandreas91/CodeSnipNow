@@ -38,8 +38,8 @@ const TABLE_SELECT_COLUMNS: Record<string, string> = {
 };
 
 const TABLE_SEARCH_COLUMNS: Record<string, string[]> = {
-  client_scripts: ['title', 'description', 'client_script', 'script_include', 'type'],
-  catalog_client_scripts: ['title', 'description', 'client_script', 'script_include', 'type'],
+  client_scripts: ['title', 'description', 'client_script', 'script_include', 'event'],
+  catalog_client_scripts: ['title', 'description', 'client_script', 'script_include', 'event'],
   service_portal_widgets: ['title', 'description', 'html', 'client_script', 'server_script']
 };
 
@@ -181,7 +181,7 @@ export function useSnippets() {
           ? (item.server_script || '')
           : (item.client_script ?? item.code ?? '');
       const resolvedCollection = item.collection ?? item.table ?? item.table_name ?? '';
-      const resolvedWhen = item.when_to_run ?? item.type ?? item.script_type ?? '';
+      const resolvedWhen = item.when_to_run ?? item.event ?? item.type ?? item.script_type ?? '';
       const resolvedUiTypeCode =
         typeof item.ui_type_code === 'number'
           ? item.ui_type_code
@@ -572,7 +572,7 @@ export function useSnippets() {
           case 'client_script':
             specificData = {
               table: data.collection,
-              type: data.when || 'onLoad',
+              event: data.when || 'onLoad',
               condition: data.condition,
               active: data.active,
               field_name: data.field_name,
@@ -589,7 +589,7 @@ export function useSnippets() {
           case 'catalog_client_script':
             specificData = {
               table: data.collection,
-              type: data.when || 'onLoad',
+              event: data.when || 'onLoad',
               active: data.active,
               ...(resolvedUiType ? { ui_type: resolvedUiType } : {})
             };
@@ -655,6 +655,11 @@ export function useSnippets() {
         }
 
         insertData = { ...baseData, ...specificData };
+
+        if (data.artifact_type === 'specialized_areas') {
+          delete (insertData as any).tags;
+          delete (insertData as any).author_id;
+        }
       }
 
       if (data.preview_image_path) {
@@ -738,7 +743,11 @@ export function useSnippets() {
           updateData.code = updates.script;
         }
       }
-      if (updates.tags && updates.artifact_type !== 'service_portal_widget') {
+      if (
+        updates.tags &&
+        updates.artifact_type !== 'service_portal_widget' &&
+        updates.artifact_type !== 'specialized_areas'
+      ) {
         updateData.tags = updates.tags;
       }
       if (updates.preview_image_path !== undefined) {
@@ -779,7 +788,7 @@ export function useSnippets() {
           if (updates.artifact_type === 'business_rule') {
             updateData.when_to_run = updates.when;
           } else if (updates.artifact_type === 'client_script' || updates.artifact_type === 'catalog_client_script') {
-            updateData.type = updates.when;
+            updateData.event = updates.when;
           }
         }
 
