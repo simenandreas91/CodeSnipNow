@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Upload, Plus, Loader2, Image as ImageIcon, Trash2 } from 'lucide-react';
 import type { User, CreateSnippetData } from '../types/snippet';
 import { ARTIFACT_TYPES } from '../types/snippet';
 import { ImageUploadModal } from './ImageUploadModal';
 import { StorageService } from '../lib/storage';
+import { supabase, hasValidSupabaseCredentials } from '../lib/supabase';
 
 interface CreateSnippetModalProps {
   onClose: () => void;
@@ -46,6 +47,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     order_value: 100,
     view: '',
     ui_type_code: 0,
+    type: '',
     tags: [],
     html: '',
     css: '',
@@ -86,6 +88,8 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
   });
 
   const [tagInput, setTagInput] = useState('');
+  const [specializedAreaTypes, setSpecializedAreaTypes] = useState<string[]>([]);
+  const [specializedAreaTypesLoading, setSpecializedAreaTypesLoading] = useState(false);
 
   const handleCheckboxChange = (field: keyof CreateSnippetData) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const { checked } = e.target;
@@ -116,6 +120,14 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
 
 
   
+  const handleArtifactTypeChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      artifact_type: value,
+      ...(value === 'specialized_areas' ? {} : { type: '' })
+    }));
+  };
+
 const renderArtifactFields = (): React.ReactNode => {
   switch (formData.artifact_type) {
     case 'client_script':
@@ -672,6 +684,47 @@ const renderArtifactFields = (): React.ReactNode => {
         </>
       );
     }
+    case 'specialized_areas':
+      return (
+        <>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Specialized Area Type *
+            </label>
+            <input
+              type="text"
+              value={formData.type || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+              list="specialized-area-type-options"
+              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Platform Security, ITSM, Analytics"
+              required
+            />
+            {specializedAreaTypesLoading ? (
+              <p className="text-xs text-slate-400 mt-1">Loading type suggestions...</p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-1">
+                Choose an existing type or enter a new category for this specialized snippet.
+              </p>
+            )}
+            {specializedAreaTypes.length > 0 && (
+              <datalist id="specialized-area-type-options">
+                {specializedAreaTypes.map(type => (
+                  <option key={type} value={type} />
+                ))}
+              </datalist>
+            )}
+          </div>
+
+          {renderScriptTextarea(
+            'Primary Code *',
+            '// Specialized area code snippet\n',
+            true,
+            12,
+            'script'
+          )}
+        </>
+      );
     case 'mail_script':
       return (
         <>
@@ -761,6 +814,70 @@ const renderArtifactFields = (): React.ReactNode => {
       );
   }
 };
+
+  useEffect(() => {
+    if (formData.artifact_type !== 'specialized_areas') {
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchSpecializedAreaTypes = async () => {
+      if (!hasValidSupabaseCredentials || !supabase) {
+        if (isMounted) {
+          setSpecializedAreaTypes([]);
+          setSpecializedAreaTypesLoading(false);
+        }
+        return;
+      }
+
+      setSpecializedAreaTypesLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('specialized_areas')
+          .select<{ type: string | null }>('type')
+          .eq('is_public', true);
+
+        if (error) {
+          console.error('Error loading specialized area types:', error);
+          if (isMounted) {
+            setSpecializedAreaTypes([]);
+          }
+          return;
+        }
+
+        const types = Array.isArray(data)
+          ? Array.from(
+              new Set(
+                data
+                  .map((item) => item.type)
+                  .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+              )
+            ).sort((a, b) => a.localeCompare(b))
+          : [];
+
+        if (isMounted) {
+          setSpecializedAreaTypes(types);
+        }
+      } catch (err) {
+        console.error('Unexpected error loading specialized area types:', err);
+        if (isMounted) {
+          setSpecializedAreaTypes([]);
+        }
+      } finally {
+        if (isMounted) {
+          setSpecializedAreaTypesLoading(false);
+        }
+      }
+    };
+
+    fetchSpecializedAreaTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.artifact_type]);
+
 const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -994,6 +1111,13 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
   }
 
+  if (formData.artifact_type === 'specialized_areas') {
+    if (!formData.type?.trim()) {
+      setError('Type is required for Specialized Areas snippets.');
+      return;
+    }
+  }
+
   let submissionData: CreateSnippetData = { ...formData };
 
   if (submissionData.artifact_type === 'client_script') {
@@ -1070,6 +1194,14 @@ const handleSubmit = async (e: React.FormEvent) => {
       client_script: submissionData.client_script?.trim() || '',
       server_script: submissionData.server_script?.trim() || '',
       link: submissionData.link?.trim() || '',
+    };
+  }
+
+  if (submissionData.artifact_type === 'specialized_areas') {
+    const trimmedType = submissionData.type?.trim();
+    submissionData = {
+      ...submissionData,
+      type: trimmedType || ''
     };
   }
 
@@ -1189,7 +1321,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </label>
                 <select
                   value={formData.artifact_type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, artifact_type: e.target.value }))}
+                  onChange={(e) => handleArtifactTypeChange(e.target.value)}
                   className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >

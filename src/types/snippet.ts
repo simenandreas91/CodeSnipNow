@@ -111,6 +111,7 @@ export interface CreateSnippetData {
   link?: string;
   demo_data?: any;
   option_schema?: any;
+  type?: string;
   // Common fields
   tags: string[];
   form_button?: boolean;

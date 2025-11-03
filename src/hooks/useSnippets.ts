@@ -637,6 +637,16 @@ export function useSnippets() {
               active: data.active
             };
             break;
+          case 'specialized_areas': {
+            const specializedType = data.type?.trim();
+            if (!specializedType) {
+              throw new Error('Type is required for specialized areas.');
+            }
+            specificData = {
+              type: specializedType
+            };
+            break;
+          }
           case 'background_script':
             specificData = {
               // Background scripts are simple - no additional fields needed
