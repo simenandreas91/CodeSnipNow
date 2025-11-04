@@ -101,6 +101,20 @@ export function useSnippets() {
     cacheRef.current.clear();
   };
 
+  const sortSnippetsAlphabetically = (items: Snippet[]) =>
+    items.sort((a, b) => {
+      const nameA = (a.name || '').trim().toLowerCase();
+      const nameB = (b.name || '').trim().toLowerCase();
+
+      if (nameA === nameB) {
+        const createdA = new Date(a.created_at).getTime();
+        const createdB = new Date(b.created_at).getTime();
+        return createdA - createdB;
+      }
+
+      return nameA.localeCompare(nameB);
+    });
+
 
   const fetchTableData = async ({
     table,
@@ -307,7 +321,7 @@ export function useSnippets() {
         allSnippets.push(...mapDatabaseToSnippet(result.data, result.artifactType));
       }
 
-      allSnippets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      sortSnippetsAlphabetically(allSnippets);
 
       const startIndex = (page - 1) * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -390,7 +404,7 @@ export function useSnippets() {
         allSnippets.push(...mapDatabaseToSnippet(result.data, result.artifactType));
       }
 
-      allSnippets.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      sortSnippetsAlphabetically(allSnippets);
 
       const startIndex = (page - 1) * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE;
