@@ -38,9 +38,12 @@ const TABLE_SELECT_COLUMNS: Record<string, string> = {
 };
 
 const TABLE_SEARCH_COLUMNS: Record<string, string[]> = {
-  client_scripts: ['title', 'description', 'client_script', 'script_include', 'event'],
-  catalog_client_scripts: ['title', 'description', 'client_script', 'script_include', 'event'],
-  service_portal_widgets: ['title', 'description', 'html', 'client_script', 'server_script']
+  business_rules: ['title', 'description', 'code', 'collection', 'condition', 'filter_condition'],
+  client_scripts: ['title', 'description', 'client_script', 'script_include', 'event', 'table'],
+  catalog_client_scripts: ['title', 'description', 'client_script', 'script_include', 'event', 'table'],
+  ui_actions: ['title', 'description', 'client_script_v2', 'onclick', 'table_name'],
+  transform_maps: ['title', 'description', 'source_table', 'target_table'],
+  service_portal_widgets: ['title', 'description', 'html', 'client_script', 'server_script', 'data_table']
 };
 
 const PUBLIC_FILTER_EXCEPTIONS = ['mail_scripts', 'inbound_actions', 'core_servicenow_apis'];
