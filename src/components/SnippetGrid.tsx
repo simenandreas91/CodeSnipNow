@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { SnippetCard } from './SnippetCard';
 import { Loader2 } from 'lucide-react';
 import type { Snippet } from '../types/snippet';
@@ -9,6 +10,14 @@ interface SnippetGridProps {
 }
 
 export function SnippetGrid({ snippets, loading, onSnippetClick }: SnippetGridProps) {
+  const sortedSnippets = useMemo(
+    () =>
+      [...snippets].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      ),
+    [snippets]
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -20,7 +29,7 @@ export function SnippetGrid({ snippets, loading, onSnippetClick }: SnippetGridPr
     );
   }
 
-  if (snippets.length === 0) {
+  if (sortedSnippets.length === 0) {
     return (
       <div className="text-center py-16">
         <div className="text-6xl mb-4">📝</div>
@@ -32,7 +41,7 @@ export function SnippetGrid({ snippets, loading, onSnippetClick }: SnippetGridPr
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {snippets.map((snippet) => (
+      {sortedSnippets.map((snippet) => (
         <SnippetCard
           key={snippet.id}
           snippet={snippet}
