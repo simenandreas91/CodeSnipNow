@@ -616,7 +616,9 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
       onClose();
     } catch (error) {
       console.error('Failed to delete snippet:', error);
-      alert('Failed to delete snippet. Please try again.');
+      const message =
+        error instanceof Error ? error.message : 'Failed to delete snippet. Please try again.';
+      alert(`Delete failed: ${message}`);
     } finally {
       setDeleting(false);
     }
@@ -628,6 +630,13 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
     setOptionSchemaError(null);
     setSaving(true);
     try {
+      console.log('[SnippetModal] handleSave', {
+        snippetId: snippet.id,
+        artifactType: snippet.artifact_type,
+        userEmail: user?.email,
+        editKeys: Object.keys(editData)
+      });
+
       const previousImagePath = snippet.preview_image_path || '';
       const updates: Partial<Snippet> = {
         artifact_type: snippet.artifact_type,
@@ -742,7 +751,16 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         }
       }
       
+      console.log('[SnippetModal] Prepared update payload', {
+        snippetId: snippet.id,
+        artifactType: snippet.artifact_type,
+        updateKeys: Object.keys(updates),
+        updates
+      });
+
       await onUpdateSnippet(snippet.id, updates);
+
+      console.log('[SnippetModal] Update completed');
 
       if (previousImagePath && previousImagePath !== normalizedPreviewPath) {
         try {
@@ -754,7 +772,14 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
 
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to update snippet:', error);
+      console.error('[SnippetModal] Failed to update snippet', {
+        snippetId: snippet.id,
+        artifactType: snippet.artifact_type,
+        error
+      });
+      const message =
+        error instanceof Error ? error.message : 'Failed to update snippet. Please try again.';
+      alert(`Update failed: ${message}`);
     } finally {
       setSaving(false);
     }

@@ -741,7 +741,13 @@ export function useSnippets() {
       if (!updates.artifact_type) {
         throw new Error('Missing artifact type in updates');
       }
-      
+
+      console.log('[updateSnippet] Initiating', {
+        snippetId,
+        artifactType: updates.artifact_type,
+        providedFields: Object.keys(updates)
+      });
+
       const artifactConfig = ARTIFACT_TYPES.find(type => type.value === updates.artifact_type);
       if (!artifactConfig) {
         throw new Error('Invalid artifact type');
@@ -770,10 +776,10 @@ export function useSnippets() {
       if (updates.preview_image_path !== undefined) {
         updateData.preview_image_path = updates.preview_image_path;
       }
-      if (updates.preview_image_url !== undefined) {
-        updateData.preview_image_url = updates.preview_image_url;
-      }
-      
+        if (updates.preview_image_url !== undefined) {
+          updateData.preview_image_url = updates.preview_image_url;
+        }
+
       // Add other fields based on artifact type
       if (updates.artifact_type === 'service_portal_widget') {
         if (updates.html !== undefined) updateData.html = updates.html;
@@ -887,21 +893,41 @@ export function useSnippets() {
       }
 
       // Update the snippet in the database
-      const { error } = await supabase
+      console.log('[updateSnippet] Prepared data', {
+        table: artifactConfig.table,
+        keys: Object.keys(updateData),
+        payload: updateData
+      });
+
+      const { data, error } = await supabase
         .from(artifactConfig.table)
         .update(updateData)
-        .eq('id', snippetId);
+        .eq('id', snippetId)
+        .select('id');
+
+      console.log('[updateSnippet] Supabase result', {
+        data,
+        error
+      });
 
       if (error) {
         console.error('Error updating snippet:', error);
         throw new Error(`Failed to update snippet: ${error.message}`);
       }
 
-      console.log('Snippet updated successfully');
+      if (!data || data.length === 0) {
+        throw new Error('Update was not applied. You may not have permission to modify this snippet.');
+      }
+
+      console.log('[updateSnippet] Success');
       invalidateCache();
       return true;
     } catch (error: any) {
-      console.error('Error in updateSnippet:', error);
+      console.error('[updateSnippet] Failed', {
+        snippetId,
+        artifactType: updates.artifact_type,
+        error
+      });
       throw new Error(error.message || 'Failed to update snippet');
     }
   };
@@ -917,14 +943,19 @@ export function useSnippets() {
         throw new Error('Invalid artifact type');
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from(artifactConfig.table)
         .delete()
-        .eq('id', snippetId);
+        .eq('id', snippetId)
+        .select('id');
 
       if (error) {
         console.error('Error deleting snippet:', error);
         throw new Error(`Failed to delete snippet: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error('Delete was not applied. You may not have permission to remove this snippet.');
       }
 
       setSnippets(prev => prev.filter(snippet => snippet.id !== snippetId));
