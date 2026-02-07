@@ -547,7 +547,7 @@ export function useSnippets() {
         const baseData: Record<string, any> = {
           title: data.name,
           description: data.description,
-          tags: data.tags,
+          ...(data.artifact_type !== 'script_include' ? { tags: data.tags } : {}),
           is_public: true,
           author_id: userId
         };
@@ -614,8 +614,7 @@ export function useSnippets() {
           case 'script_include':
             specificData = {
               api_name: (data.api_name?.trim() || data.name.replace(/\s+/g, '')),
-              active: data.active,
-              access_level: data.access_level || 'package_private',
+              application: data.application || 'Global',
               caller_access: data.caller_access || '',
               client_callable: data.client_callable || false
             };
@@ -755,7 +754,7 @@ export function useSnippets() {
 
       // Prepare update data
       const updateData: Record<string, any> = {};
-      
+
       // Map fields from our app's naming convention to database fields
       if (updates.name) updateData.title = updates.name;
       if (updates.description) updateData.description = updates.description;
@@ -776,9 +775,9 @@ export function useSnippets() {
       if (updates.preview_image_path !== undefined) {
         updateData.preview_image_path = updates.preview_image_path;
       }
-        if (updates.preview_image_url !== undefined) {
-          updateData.preview_image_url = updates.preview_image_url;
-        }
+      if (updates.preview_image_url !== undefined) {
+        updateData.preview_image_url = updates.preview_image_url;
+      }
 
       // Add other fields based on artifact type
       if (updates.artifact_type === 'service_portal_widget') {
@@ -806,7 +805,7 @@ export function useSnippets() {
             updateData.table_name = updates.collection;
           }
         }
-        
+
         if (updates.when) {
           if (updates.artifact_type === 'business_rule') {
             updateData.when_to_run = updates.when;
@@ -839,7 +838,7 @@ export function useSnippets() {
         if (updates.action_query !== undefined && updates.artifact_type === 'business_rule') {
           updateData.action_query = updates.action_query;
         }
-        
+
         if (updates.condition) updateData.condition = updates.condition;
         if (updates.client_script_v2 !== undefined && updates.artifact_type === 'ui_action') {
           updateData.client_script_v2 = updates.client_script_v2;

@@ -136,6 +136,7 @@ export interface CreateSnippetData {
   newlines_to_html?: boolean;  // Mail Script specific field
   preview_image_path?: string | null;
   preview_image_url?: string | null;
+  application?: string;
 }
 
 export interface ArtifactType {

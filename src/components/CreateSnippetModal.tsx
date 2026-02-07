@@ -20,7 +20,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
   const [method, setMethod] = useState<'manual' | 'xml'>('manual');
   const [showImageModal, setShowImageModal] = useState(false);
   const [removingImage, setRemovingImage] = useState(false);
-  
+
   const [formData, setFormData] = useState<CreateSnippetData>({
     name: '',
     description: '',
@@ -41,6 +41,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     advanced: false,
     field_name: '',
     global: false,
+    application: 'Global',
     isolate_script: true,
     applies_extended: false,
     messages: '',
@@ -118,7 +119,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
   );
 
 
-  
+
   const handleArtifactTypeChange = (value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -127,479 +128,143 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     }));
   };
 
-const renderArtifactFields = (): React.ReactNode => {
-  switch (formData.artifact_type) {
-    case 'client_script':
-      return (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Application
-              </label>
-              <input
-                type="text"
-                value="Global"
-                readOnly
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                Scoped to the Global application by default.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-4 md:justify-end">
-              <label className="inline-flex items-center gap-2 text-slate-300">
+  const renderArtifactFields = (): React.ReactNode => {
+    switch (formData.artifact_type) {
+      case 'client_script':
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Application
+                </label>
                 <input
-                  type="checkbox"
-                  checked={formData.active !== false}
-                  onChange={handleCheckboxChange('active')}
-                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  type="text"
+                  value={formData.application || 'Global'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, application: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                Active
-              </label>
-              <label className="inline-flex items-center gap-2 text-slate-300">
+                <p className="text-xs text-slate-400 mt-1">
+                  Scoped to the Global application by default.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-4 md:justify-end">
+                <label className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.active !== false}
+                    onChange={handleCheckboxChange('active')}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  Active
+                </label>
+                <label className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.applies_extended}
+                    onChange={handleCheckboxChange('applies_extended')}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  Inherited
+                </label>
+                <label className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.global}
+                    onChange={handleCheckboxChange('global')}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  Global
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Table *
+                </label>
                 <input
-                  type="checkbox"
-                  checked={!!formData.applies_extended}
-                  onChange={handleCheckboxChange('applies_extended')}
-                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  type="text"
+                  value={formData.collection || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="User [sys_user]"
                 />
-                Inherited
-              </label>
-              <label className="inline-flex items-center gap-2 text-slate-300">
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  UI Type
+                </label>
+                <select
+                  value={formData.ui_type_code ?? 0}
+                  onChange={(e) => setFormData(prev => ({ ...prev, ui_type_code: parseInt(e.target.value, 10) }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={0} className="bg-slate-800">All</option>
+                  <option value={10} className="bg-slate-800">Desktop</option>
+                  <option value={1} className="bg-slate-800">Mobile</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Type *
+                </label>
+                <select
+                  value={formData.when || 'onLoad'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="onLoad" className="bg-slate-800">onLoad</option>
+                  <option value="onChange" className="bg-slate-800">onChange</option>
+                  <option value="onSubmit" className="bg-slate-800">onSubmit</option>
+                  <option value="onCellEdit" className="bg-slate-800">onCellEdit</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Field Name
+                </label>
                 <input
-                  type="checkbox"
-                  checked={!!formData.global}
-                  onChange={handleCheckboxChange('global')}
-                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  type="text"
+                  value={formData.field_name || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, field_name: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="leave blank unless Type is onChange"
                 />
-                Global
-              </label>
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Table *
-              </label>
-              <input
-                type="text"
-                value={formData.collection || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="User [sys_user]"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  View
+                </label>
+                <input
+                  type="text"
+                  value={formData.view || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, view: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Default view"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Order
+                </label>
+                <input
+                  type="number"
+                  value={formData.order_value ?? 100}
+                  onChange={(e) => setFormData(prev => ({ ...prev, order_value: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="100"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                UI Type
-              </label>
-              <select
-                value={formData.ui_type_code ?? 0}
-                onChange={(e) => setFormData(prev => ({ ...prev, ui_type_code: parseInt(e.target.value, 10) }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={0} className="bg-slate-800">All</option>
-                <option value={10} className="bg-slate-800">Desktop</option>
-                <option value={1} className="bg-slate-800">Mobile</option>
-              </select>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Type *
-              </label>
-              <select
-                value={formData.when || 'onLoad'}
-                onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="onLoad" className="bg-slate-800">onLoad</option>
-                <option value="onChange" className="bg-slate-800">onChange</option>
-                <option value="onSubmit" className="bg-slate-800">onSubmit</option>
-                <option value="onCellEdit" className="bg-slate-800">onCellEdit</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Field Name
-              </label>
-              <input
-                type="text"
-                value={formData.field_name || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, field_name: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="leave blank unless Type is onChange"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                View
-              </label>
-              <input
-                type="text"
-                value={formData.view || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, view: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., Default view"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Order
-              </label>
-              <input
-                type="number"
-                value={formData.order_value ?? 100}
-                onChange={(e) => setFormData(prev => ({ ...prev, order_value: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="100"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Condition
-            </label>
-            <input
-              type="text"
-              value={formData.condition || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
-              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Optional script condition"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Messages
-            </label>
-            <textarea
-              value={formData.messages || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, messages: e.target.value }))}
-              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Optional UI messages to display"
-              rows={3}
-            />
-          </div>
-
-          {renderScriptTextarea('Script *', 'function onLoad() {\n  // Client script\n}')}
-          {renderScriptTextarea(
-            'Script Include (optional)',
-            'var MyScriptInclude = Class.create({\n  initialize: function() {},\n  myMethod: function() {}\n});',
-            false,
-            12,
-            'script_include'
-          )}
-
-          <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={formData.isolate_script !== false}
-                onChange={handleCheckboxChange('isolate_script')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Isolate script
-            </label>
-          </div>
-        </>
-      );
-    case 'business_rule':
-      return (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Table *
-              </label>
-              <input
-                type="text"
-                value={formData.collection || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Incident [incident]"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                When *
-              </label>
-              <select
-                value={formData.when || 'before'}
-                onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="before" className="bg-slate-800">Before</option>
-                <option value="after" className="bg-slate-800">After</option>
-                <option value="async" className="bg-slate-800">Async</option>
-                <option value="display" className="bg-slate-800">Display</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Order
-              </label>
-              <input
-                type="number"
-                value={formData.order ?? 100}
-                onChange={(e) => setFormData(prev => ({ ...prev, order: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Filter Condition (encoded query)
-              </label>
-              <input
-                type="text"
-                value={formData.filter_condition || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, filter_condition: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., active=true^category=software"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={formData.active !== false}
-                onChange={handleCheckboxChange('active')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Active
-            </label>
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={!!formData.advanced}
-                onChange={handleCheckboxChange('advanced')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Advanced
-            </label>
-          </div>
-
-          <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={!!formData.action_insert}
-                onChange={handleCheckboxChange('action_insert')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Insert
-            </label>
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={!!formData.action_update}
-                onChange={handleCheckboxChange('action_update')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Update
-            </label>
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={!!formData.action_delete}
-                onChange={handleCheckboxChange('action_delete')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Delete
-            </label>
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={!!formData.action_query}
-                onChange={handleCheckboxChange('action_query')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Query
-            </label>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Condition Script
-            </label>
-            <textarea
-              value={formData.condition || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
-              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="return current.active;"
-              rows={4}
-            />
-          </div>
-
-          {renderScriptTextarea('Script *', '(function executeRule(current, previous /*null when async*/ ) {\n  // Business rule logic\n})()')}
-        </>
-      );
-    case 'script_include':
-      return (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Application
-              </label>
-              <input
-                type="text"
-                value="Global"
-                readOnly
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                API Name *
-              </label>
-              <input
-                type="text"
-                value={formData.api_name || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, api_name: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="MyScriptInclude"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                Used when calling this script include.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Accessible from
-              </label>
-              <select
-                value={formData.access_level || 'package_private'}
-                onChange={(e) => setFormData(prev => ({ ...prev, access_level: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="package_private" className="bg-slate-800">This application scope only</option>
-                <option value="public" className="bg-slate-800">All application scopes</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Caller Access
-              </label>
-              <input
-                type="text"
-                value={formData.caller_access || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, caller_access: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Comma separated roles (optional)"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                Restrict who can call this script include.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={formData.active !== false}
-                onChange={handleCheckboxChange('active')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Active
-            </label>
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={!!formData.client_callable}
-                onChange={handleCheckboxChange('client_callable')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Client callable
-            </label>
-          </div>
-
-          {renderScriptTextarea('Script *', 'var MyScriptInclude = Class.create({\n  initialize: function() {},\n});', true, 12)}
-        </>
-      );
-    case 'ui_action': {
-      const placementOptions: Array<{ field: keyof CreateSnippetData; label: string }> = [
-        { field: 'form_button', label: 'Form button' },
-        { field: 'form_context_menu', label: 'Form context menu' },
-        { field: 'form_link', label: 'Form link' },
-        { field: 'list_button', label: 'List button' },
-        { field: 'list_context_menu', label: 'List context menu' },
-      ];
-      const visibilityOptions: Array<{ field: keyof CreateSnippetData; label: string }> = [
-        { field: 'show_insert', label: 'Show Insert' },
-        { field: 'show_update', label: 'Show Update' },
-        { field: 'show_query', label: 'Show List (Query)' },
-        { field: 'show_multiple_update', label: 'Show Multi Update' },
-      ];
-      return (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Table *
-              </label>
-              <input
-                type="text"
-                value={formData.collection || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Incident [incident]"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Order
-              </label>
-              <input
-                type="number"
-                value={formData.order ?? 100}
-                onChange={(e) => setFormData(prev => ({ ...prev, order: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="100"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={formData.active !== false}
-                onChange={handleCheckboxChange('active')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Active
-            </label>
-            <label className="inline-flex items-center gap-2 text-slate-300">
-              <input
-                type="checkbox"
-                checked={!!formData.client}
-                onChange={handleCheckboxChange('client')}
-                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-              />
-              Client
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Condition
@@ -612,170 +277,103 @@ const renderArtifactFields = (): React.ReactNode => {
                 placeholder="Optional script condition"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Button hint
+                Messages
               </label>
-              <input
-                type="text"
-                value={formData.hint || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, hint: e.target.value }))}
+              <textarea
+                value={formData.messages || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, messages: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Tooltip displayed on the button"
+                placeholder="Optional UI messages to display"
+                rows={3}
               />
             </div>
-          </div>
 
-          <div>
-            <span className="block text-sm font-medium text-slate-300 mb-2">Display on</span>
-            <div className="flex flex-wrap gap-4">
-              {placementOptions.map((option) => (
-                <label key={option.field as string} className="inline-flex items-center gap-2 text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(formData[option.field])}
-                    onChange={handleCheckboxChange(option.field)}
-                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <span className="block text-sm font-medium text-slate-300 mb-2">Visibility</span>
-            <div className="flex flex-wrap gap-4">
-              {visibilityOptions.map((option) => (
-                <label key={option.field as string} className="inline-flex items-center gap-2 text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(formData[option.field])}
-                    onChange={handleCheckboxChange(option.field)}
-                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Onclick
-            </label>
-            <textarea
-              value={formData.onclick || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, onclick: e.target.value }))}
-              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="onClick();"
-              rows={4}
-            />
-          </div>
-
-          {renderScriptTextarea('Script *', '(function onClick() {\n  // logic\n})()')}
-        </>
-      );
-    }
-    case 'specialized_areas':
-      return (
-        <>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Specialized Area Type *
-            </label>
-            <input
-              type="text"
-              value={formData.type || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
-              list="specialized-area-type-options"
-              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., Platform Security, ITSM, Analytics"
-            />
-            {specializedAreaTypesLoading ? (
-              <p className="text-xs text-slate-400 mt-1">Loading type suggestions...</p>
-            ) : (
-              <p className="text-xs text-slate-400 mt-1">
-                Choose an existing type or enter a new category for this specialized snippet.
-              </p>
+            {renderScriptTextarea('Script *', 'function onLoad() {\n  // Client script\n}')}
+            {renderScriptTextarea(
+              'Script Include (optional)',
+              'var MyScriptInclude = Class.create({\n  initialize: function() {},\n  myMethod: function() {}\n});',
+              false,
+              12,
+              'script_include'
             )}
-            {specializedAreaTypes.length > 0 && (
-              <datalist id="specialized-area-type-options">
-                {specializedAreaTypes.map(type => (
-                  <option key={type} value={type} />
-                ))}
-              </datalist>
-            )}
-          </div>
 
-          {renderScriptTextarea(
-            'Primary Code *',
-            '// Specialized area code snippet\n',
-            true,
-            12,
-            'script'
-          )}
-        </>
-      );
-    case 'mail_script':
-      return (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Application
-              </label>
-              <input
-                type="text"
-                value="Global"
-                readOnly
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                Scoped to the Global application by default.
-              </p>
-            </div>
-            <div className="flex items-center md:justify-end">
+            <div className="flex flex-wrap gap-4">
               <label className="inline-flex items-center gap-2 text-slate-300">
                 <input
                   type="checkbox"
-                  checked={!!formData.newlines_to_html}
-                  onChange={handleCheckboxChange('newlines_to_html')}
+                  checked={formData.isolate_script !== false}
+                  onChange={handleCheckboxChange('isolate_script')}
                   className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
                 />
-                Newlines to HTML
+                Isolate script
               </label>
             </div>
-          </div>
+          </>
+        );
+      case 'business_rule':
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Table *
+                </label>
+                <input
+                  type="text"
+                  value={formData.collection || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Incident [incident]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  When *
+                </label>
+                <select
+                  value={formData.when || 'before'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="before" className="bg-slate-800">Before</option>
+                  <option value="after" className="bg-slate-800">After</option>
+                  <option value="async" className="bg-slate-800">Async</option>
+                  <option value="display" className="bg-slate-800">Display</option>
+                </select>
+              </div>
+            </div>
 
-          {renderScriptTextarea('Script *', '// Mail script code\n')}
-        </>
-      );
-    case 'background_script':
-      return (
-        <>
-          {renderScriptTextarea('Script *', '// Background script code\n')}
-        </>
-      );
-    case 'service_portal_widget':
-      return null;
-    default:
-      return (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Table/Collection
-              </label>
-              <input
-                type="text"
-                value={formData.collection || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., sys_email"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Order
+                </label>
+                <input
+                  type="number"
+                  value={formData.order ?? 100}
+                  onChange={(e) => setFormData(prev => ({ ...prev, order: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Filter Condition (encoded query)
+                </label>
+                <input
+                  type="text"
+                  value={formData.filter_condition || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, filter_condition: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., active=true^category=software"
+                />
+              </div>
             </div>
-            <div className="flex items-center md:justify-end">
+
+            <div className="flex flex-wrap gap-4">
               <label className="inline-flex items-center gap-2 text-slate-300">
                 <input
                   type="checkbox"
@@ -785,27 +383,419 @@ const renderArtifactFields = (): React.ReactNode => {
                 />
                 Active
               </label>
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.advanced}
+                  onChange={handleCheckboxChange('advanced')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Advanced
+              </label>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Condition
-            </label>
-            <input
-              type="text"
-              value={formData.condition || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
-              className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Optional condition or encoded query"
-            />
-          </div>
+            <div className="flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.action_insert}
+                  onChange={handleCheckboxChange('action_insert')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Insert
+              </label>
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.action_update}
+                  onChange={handleCheckboxChange('action_update')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Update
+              </label>
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.action_delete}
+                  onChange={handleCheckboxChange('action_delete')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Delete
+              </label>
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.action_query}
+                  onChange={handleCheckboxChange('action_query')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Query
+              </label>
+            </div>
 
-          {renderScriptTextarea('Script *', 'Enter your code here')}
-        </>
-      );
-  }
-};
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Condition Script
+              </label>
+              <textarea
+                value={formData.condition || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="return current.active;"
+                rows={4}
+              />
+            </div>
+
+            {renderScriptTextarea('Script *', '(function executeRule(current, previous /*null when async*/ ) {\n  // Business rule logic\n})()')}
+          </>
+        );
+      case 'script_include':
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Application
+                </label>
+                <input
+                  type="text"
+                  value={formData.application || 'Global'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, application: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  API Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.api_name || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, api_name: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="MyScriptInclude"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Used when calling this script include.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Caller Access
+                </label>
+                <input
+                  type="text"
+                  value={formData.caller_access || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, caller_access: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Comma separated roles (optional)"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Restrict who can call this script include.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4">
+              {formData.artifact_type !== 'script_include' && (
+                <label className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.active !== false}
+                    onChange={handleCheckboxChange('active')}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  Active
+                </label>
+              )}
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.client_callable}
+                  onChange={handleCheckboxChange('client_callable')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Client callable
+              </label>
+            </div>
+
+            {renderScriptTextarea('Script *', 'var MyScriptInclude = Class.create({\n  initialize: function() {},\n});', true, 12)}
+          </>
+        );
+      case 'ui_action': {
+        const placementOptions: Array<{ field: keyof CreateSnippetData; label: string }> = [
+          { field: 'form_button', label: 'Form button' },
+          { field: 'form_context_menu', label: 'Form context menu' },
+          { field: 'form_link', label: 'Form link' },
+          { field: 'list_button', label: 'List button' },
+          { field: 'list_context_menu', label: 'List context menu' },
+        ];
+        const visibilityOptions: Array<{ field: keyof CreateSnippetData; label: string }> = [
+          { field: 'show_insert', label: 'Show Insert' },
+          { field: 'show_update', label: 'Show Update' },
+          { field: 'show_query', label: 'Show List (Query)' },
+          { field: 'show_multiple_update', label: 'Show Multi Update' },
+        ];
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Table *
+                </label>
+                <input
+                  type="text"
+                  value={formData.collection || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Incident [incident]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Order
+                </label>
+                <input
+                  type="number"
+                  value={formData.order ?? 100}
+                  onChange={(e) => setFormData(prev => ({ ...prev, order: Number.isNaN(parseInt(e.target.value, 10)) ? 100 : parseInt(e.target.value, 10) }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="100"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={formData.active !== false}
+                  onChange={handleCheckboxChange('active')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Active
+              </label>
+              <label className="inline-flex items-center gap-2 text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={!!formData.client}
+                  onChange={handleCheckboxChange('client')}
+                  className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                />
+                Client
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Condition
+                </label>
+                <input
+                  type="text"
+                  value={formData.condition || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Optional script condition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Button hint
+                </label>
+                <input
+                  type="text"
+                  value={formData.hint || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, hint: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Tooltip displayed on the button"
+                />
+              </div>
+            </div>
+
+            <div>
+              <span className="block text-sm font-medium text-slate-300 mb-2">Display on</span>
+              <div className="flex flex-wrap gap-4">
+                {placementOptions.map((option) => (
+                  <label key={option.field as string} className="inline-flex items-center gap-2 text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData[option.field])}
+                      onChange={handleCheckboxChange(option.field)}
+                      className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span className="block text-sm font-medium text-slate-300 mb-2">Visibility</span>
+              <div className="flex flex-wrap gap-4">
+                {visibilityOptions.map((option) => (
+                  <label key={option.field as string} className="inline-flex items-center gap-2 text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData[option.field])}
+                      onChange={handleCheckboxChange(option.field)}
+                      className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Onclick
+              </label>
+              <textarea
+                value={formData.onclick || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, onclick: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="onClick();"
+                rows={4}
+              />
+            </div>
+
+            {renderScriptTextarea('Script *', '(function onClick() {\n  // logic\n})()')}
+          </>
+        );
+      }
+      case 'specialized_areas':
+        return (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Specialized Area Type *
+              </label>
+              <input
+                type="text"
+                value={formData.type || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+                list="specialized-area-type-options"
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., Platform Security, ITSM, Analytics"
+              />
+              {specializedAreaTypesLoading ? (
+                <p className="text-xs text-slate-400 mt-1">Loading type suggestions...</p>
+              ) : (
+                <p className="text-xs text-slate-400 mt-1">
+                  Choose an existing type or enter a new category for this specialized snippet.
+                </p>
+              )}
+              {specializedAreaTypes.length > 0 && (
+                <datalist id="specialized-area-type-options">
+                  {specializedAreaTypes.map(type => (
+                    <option key={type} value={type} />
+                  ))}
+                </datalist>
+              )}
+            </div>
+
+            {renderScriptTextarea(
+              'Primary Code *',
+              '// Specialized area code snippet\n',
+              true,
+              12,
+              'script'
+            )}
+          </>
+        );
+      case 'mail_script':
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Application
+                </label>
+                <input
+                  type="text"
+                  value="Global"
+                  readOnly
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Scoped to the Global application by default.
+                </p>
+              </div>
+              <div className="flex items-center md:justify-end">
+                <label className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.newlines_to_html}
+                    onChange={handleCheckboxChange('newlines_to_html')}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  Newlines to HTML
+                </label>
+              </div>
+            </div>
+
+            {renderScriptTextarea('Script *', '// Mail script code\n')}
+          </>
+        );
+      case 'background_script':
+        return (
+          <>
+            {renderScriptTextarea('Script *', '// Background script code\n')}
+          </>
+        );
+      case 'service_portal_widget':
+        return null;
+      default:
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Table/Collection
+                </label>
+                <input
+                  type="text"
+                  value={formData.collection || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., sys_email"
+                />
+              </div>
+              <div className="flex items-center md:justify-end">
+                <label className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.active !== false}
+                    onChange={handleCheckboxChange('active')}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  Active
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Condition
+              </label>
+              <input
+                type="text"
+                value={formData.condition || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Optional condition or encoded query"
+              />
+            </div>
+
+            {renderScriptTextarea('Script *', 'Enter your code here')}
+          </>
+        );
+    }
+  };
 
   useEffect(() => {
     if (formData.artifact_type !== 'specialized_areas') {
@@ -840,12 +830,12 @@ const renderArtifactFields = (): React.ReactNode => {
 
         const types = Array.isArray(data)
           ? Array.from(
-              new Set(
-                data
-                  .map((item) => item.type)
-                  .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-              )
-            ).sort((a, b) => a.localeCompare(b))
+            new Set(
+              data
+                .map((item) => item.type)
+                .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+            )
+          ).sort((a, b) => a.localeCompare(b))
           : [];
 
         if (isMounted) {
@@ -870,7 +860,7 @@ const renderArtifactFields = (): React.ReactNode => {
     };
   }, [formData.artifact_type]);
 
-const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -886,15 +876,15 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
-      
+
       // Extract data from ServiceNow XML export
-      const element = xmlDoc.querySelector('sys_script') || 
-                    xmlDoc.querySelector('sys_script_include') || 
-                    xmlDoc.querySelector('sys_ui_action') ||
-                    xmlDoc.querySelector('sys_script_client') ||
-                    xmlDoc.querySelector('sys_widget') ||
-                    xmlDoc.querySelector('sp_widget') ||
-                    xmlDoc.querySelector('sys_script_email');
+      const element = xmlDoc.querySelector('sys_script') ||
+        xmlDoc.querySelector('sys_script_include') ||
+        xmlDoc.querySelector('sys_ui_action') ||
+        xmlDoc.querySelector('sys_script_client') ||
+        xmlDoc.querySelector('sys_widget') ||
+        xmlDoc.querySelector('sp_widget') ||
+        xmlDoc.querySelector('sys_script_email');
 
       if (element) {
         const extractValue = (tagName: string) => {
@@ -903,7 +893,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         };
 
         const artifactType = determineArtifactType(element.tagName);
-        
+
         const baseData = {
           name: extractValue('name') || extractValue('sys_name'),
           description: extractValue('description'),
@@ -956,6 +946,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         } else {
           setFormData({
             ...baseData,
+            application: extractValue('sys_scope') || 'Global', // Assuming sys_scope for application
             access_level: extractValue('access') === 'public' ? 'public' : 'package_private',
             client_callable: extractValue('client_callable') === 'true',
             client: extractValue('client') === 'true',  // UI Action specific field
@@ -1048,117 +1039,116 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
   };
 
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError('');
-  setOptionSchemaError('');
-  setDemoDataError('');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setOptionSchemaError('');
+    setDemoDataError('');
 
-  let submissionData: CreateSnippetData = { ...formData };
+    let submissionData: CreateSnippetData = { ...formData };
+    if (submissionData.artifact_type === 'client_script') {
+      submissionData = {
+        ...submissionData,
+        collection: submissionData.collection?.trim() || '',
+        when: submissionData.when?.trim() || 'onLoad',
+        order_value: submissionData.order_value ?? 100,
+        ui_type_code: submissionData.ui_type_code ?? 0,
+        script_include: submissionData.script_include?.trim() || '',
+        application: submissionData.application || 'Global',
+      };
+    }
 
-  if (submissionData.artifact_type === 'client_script') {
-    submissionData = {
-      ...submissionData,
-      collection: submissionData.collection?.trim() || '',
-      when: submissionData.when?.trim() || 'onLoad',
-      order_value: submissionData.order_value ?? 100,
-      ui_type_code: submissionData.ui_type_code ?? 0,
-      script_include: submissionData.script_include?.trim() || ''
-    };
-  }
+    if (submissionData.artifact_type === 'business_rule') {
+      const normalizedOrder = Number.isNaN(Number(submissionData.order)) ? 100 : Number(submissionData.order);
+      submissionData = {
+        ...submissionData,
+        collection: submissionData.collection?.trim() || '',
+        when: submissionData.when?.trim() || 'before',
+        order: normalizedOrder,
+        filter_condition: submissionData.filter_condition?.trim() || '',
+        condition: submissionData.condition?.trim() || '',
+        action_insert: !!submissionData.action_insert,
+        action_update: !!submissionData.action_update,
+        action_delete: !!submissionData.action_delete,
+        action_query: !!submissionData.action_query,
+        advanced: !!submissionData.advanced,
+        active: submissionData.active !== false,
+      };
+    }
 
-  if (submissionData.artifact_type === 'business_rule') {
-    const normalizedOrder = Number.isNaN(Number(submissionData.order)) ? 100 : Number(submissionData.order);
-    submissionData = {
-      ...submissionData,
-      collection: submissionData.collection?.trim() || '',
-      when: submissionData.when?.trim() || 'before',
-      order: normalizedOrder,
-      filter_condition: submissionData.filter_condition?.trim() || '',
-      condition: submissionData.condition?.trim() || '',
-      action_insert: !!submissionData.action_insert,
-      action_update: !!submissionData.action_update,
-      action_delete: !!submissionData.action_delete,
-      action_query: !!submissionData.action_query,
-      advanced: !!submissionData.advanced,
-      active: submissionData.active !== false,
-    };
-  }
+    if (submissionData.artifact_type === 'script_include') {
+      const apiName = (submissionData.api_name?.trim() || submissionData.name?.replace(/\s+/g, '') || '');
+      submissionData = {
+        ...submissionData,
+        api_name: apiName,
+        application: submissionData.application || 'Global',
+        caller_access: submissionData.caller_access?.trim() || '',
+        client: !!submissionData.client,
+      };
+    }
 
-  if (submissionData.artifact_type === 'script_include') {
-    const apiName = (submissionData.api_name?.trim() || submissionData.name?.replace(/\s+/g, '') || '');
-    submissionData = {
-      ...submissionData,
-      api_name: apiName,
-      access_level: submissionData.access_level || 'package_private',
-      caller_access: submissionData.caller_access?.trim() || '',
-      client: !!submissionData.client,
-      active: submissionData.active !== false,
-    };
-  }
+    if (submissionData.artifact_type === 'ui_action') {
+      const normalizedOrder = Number.isNaN(Number(submissionData.order)) ? 100 : Number(submissionData.order);
+      submissionData = {
+        ...submissionData,
+        collection: submissionData.collection?.trim() || '',
+        order: normalizedOrder,
+        condition: submissionData.condition?.trim() || '',
+        hint: submissionData.hint?.trim() || '',
+        onclick: submissionData.onclick?.trim() || '',
+        active: submissionData.active !== false,
+        form_button: !!submissionData.form_button,
+        form_context_menu: !!submissionData.form_context_menu,
+        form_link: !!submissionData.form_link,
+        list_button: !!submissionData.list_button,
+        list_context_menu: !!submissionData.list_context_menu,
+        show_insert: !!submissionData.show_insert,
+        show_update: !!submissionData.show_update,
+        show_query: !!submissionData.show_query,
+        show_multiple_update: !!submissionData.show_multiple_update,
+        client: !!submissionData.client,
+      };
+    }
 
-  if (submissionData.artifact_type === 'ui_action') {
-    const normalizedOrder = Number.isNaN(Number(submissionData.order)) ? 100 : Number(submissionData.order);
-    submissionData = {
-      ...submissionData,
-      collection: submissionData.collection?.trim() || '',
-      order: normalizedOrder,
-      condition: submissionData.condition?.trim() || '',
-      hint: submissionData.hint?.trim() || '',
-      onclick: submissionData.onclick?.trim() || '',
-      active: submissionData.active !== false,
-      form_button: !!submissionData.form_button,
-      form_context_menu: !!submissionData.form_context_menu,
-      form_link: !!submissionData.form_link,
-      list_button: !!submissionData.list_button,
-      list_context_menu: !!submissionData.list_context_menu,
-      show_insert: !!submissionData.show_insert,
-      show_update: !!submissionData.show_update,
-      show_query: !!submissionData.show_query,
-      show_multiple_update: !!submissionData.show_multiple_update,
-      client: !!submissionData.client,
-    };
-  }
+    if (submissionData.artifact_type === 'service_portal_widget') {
+      submissionData = {
+        ...submissionData,
+        data_table: submissionData.data_table?.trim() || '',
+        field_list: submissionData.field_list?.trim() || '',
+        html: submissionData.html?.trim() || '',
+        css: submissionData.css?.trim() || '',
+        client_script: submissionData.client_script?.trim() || '',
+        server_script: submissionData.server_script?.trim() || '',
+        link: submissionData.link?.trim() || '',
+      };
+    }
 
-  if (submissionData.artifact_type === 'service_portal_widget') {
-    submissionData = {
-      ...submissionData,
-      data_table: submissionData.data_table?.trim() || '',
-      field_list: submissionData.field_list?.trim() || '',
-      html: submissionData.html?.trim() || '',
-      css: submissionData.css?.trim() || '',
-      client_script: submissionData.client_script?.trim() || '',
-      server_script: submissionData.server_script?.trim() || '',
-      link: submissionData.link?.trim() || '',
-    };
-  }
+    if (submissionData.artifact_type === 'specialized_areas') {
+      const trimmedType = submissionData.type?.trim();
+      submissionData = {
+        ...submissionData,
+        type: trimmedType || ''
+      };
+    }
 
-  if (submissionData.artifact_type === 'specialized_areas') {
-    const trimmedType = submissionData.type?.trim();
-    submissionData = {
-      ...submissionData,
-      type: trimmedType || ''
-    };
-  }
+    setLoading(true);
+    console.log('Form submitted, creating snippet...');
 
-  setLoading(true);
-  console.log('Form submitted, creating snippet...');
-
-  try {
-    await onCreateSnippet(submissionData, user.id);
-    console.log('Snippet created successfully, closing modal...');
-    onClose();
-  } catch (err: unknown) {
-    console.error('Error creating snippet:', err);
-    const errorMessage = err instanceof Error ? err.message : 'Failed to create snippet';
-    setError(errorMessage);
-    console.error('Setting error message:', errorMessage);
-  } finally {
-    setLoading(false);
-    console.log('Create snippet process completed');
-  }
-};
-const handleOptionSchemaChange = (value: string) => {
+    try {
+      await onCreateSnippet(submissionData, user.id);
+      console.log('Snippet created successfully, closing modal...');
+      onClose();
+    } catch (err: unknown) {
+      console.error('Error creating snippet:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create snippet';
+      setError(errorMessage);
+      console.error('Setting error message:', errorMessage);
+    } finally {
+      setLoading(false);
+      console.log('Create snippet process completed');
+    }
+  };
+  const handleOptionSchemaChange = (value: string) => {
     try {
       const parsed = value ? JSON.parse(value) : {};
       setFormData(prev => ({ ...prev, option_schema: parsed }));
@@ -1168,7 +1158,7 @@ const handleOptionSchemaChange = (value: string) => {
     }
   };
 
-const handleDemoDataChange = (value: string) => {
+  const handleDemoDataChange = (value: string) => {
     try {
       const parsed = value ? JSON.parse(value) : {};
       setFormData(prev => ({ ...prev, demo_data: parsed }));
@@ -1182,360 +1172,358 @@ const handleDemoDataChange = (value: string) => {
     <>
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div className="bg-slate-900/95 backdrop-blur-sm border border-white/20 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h2 className="text-xl font-bold text-white">Create New Snippet</h2>
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="p-6 overflow-y-auto flex-1">
-          <div className="flex gap-4 mb-6">
+          <div className="flex items-center justify-between p-6 border-b border-white/10">
+            <h2 className="text-xl font-bold text-white">Create New Snippet</h2>
             <button
-              onClick={() => setMethod('manual')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                method === 'manual'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
-              }`}
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white transition-colors"
             >
-              <Plus className="h-4 w-4" />
-              Manual Entry
-            </button>
-            <button
-              onClick={() => setMethod('xml')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                method === 'xml'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
-              }`}
-            >
-              <Upload className="h-4 w-4" />
-              Upload XML
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          {method === 'xml' && (
-            <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Upload ServiceNow XML Export
-              </label>
-              <input
-                type="file"
-                accept=".xml"
-                onChange={handleFileUpload}
-                className="w-full text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-white hover:file:bg-blue-600"
-              />
-              <p className="text-xs text-slate-400 mt-2">
-                Upload a ServiceNow XML export file to automatically populate the form fields.
-              </p>
+          <div className="p-6 overflow-y-auto flex-1">
+            <div className="flex gap-4 mb-6">
+              <button
+                onClick={() => setMethod('manual')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${method === 'manual'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                  }`}
+              >
+                <Plus className="h-4 w-4" />
+                Manual Entry
+              </button>
+              <button
+                onClick={() => setMethod('xml')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${method === 'xml'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                  }`}
+              >
+                <Upload className="h-4 w-4" />
+                Upload XML
+              </button>
             </div>
-          )}
 
-          <form id="snippet-form" onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
+            {method === 'xml' && (
+              <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Name *
+                  Upload ServiceNow XML Export
                 </label>
                 <input
-                  type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter snippet name"
-              />
+                  type="file"
+                  accept=".xml"
+                  onChange={handleFileUpload}
+                  className="w-full text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-white hover:file:bg-blue-600"
+                />
+                <p className="text-xs text-slate-400 mt-2">
+                  Upload a ServiceNow XML export file to automatically populate the form fields.
+                </p>
+              </div>
+            )}
+
+            <form id="snippet-form" onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter snippet name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Artifact Type *
+                  </label>
+                  <select
+                    value={formData.artifact_type}
+                    onChange={(e) => handleArtifactTypeChange(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {ARTIFACT_TYPES.map(type => (
+                      <option key={type.value} value={type.value} className="bg-slate-800">
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Artifact Type *
+                  Description *
                 </label>
-                <select
-                value={formData.artifact_type}
-                onChange={(e) => handleArtifactTypeChange(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                  {ARTIFACT_TYPES.map(type => (
-                    <option key={type.value} value={type.value} className="bg-slate-800">
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Describe what this snippet does"
+                  rows={3}
+                />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Description *
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Describe what this snippet does"
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Preview Image
-              </label>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border border-dashed border-white/20 bg-white/5 p-4">
-                {formData.preview_image_url ? (
-                  <>
-                    <img
-                      src={formData.preview_image_url || ''}
-                      alt="Snippet preview"
-                      className="h-32 w-full sm:w-48 object-cover rounded-lg border border-white/10 bg-slate-900/50"
-                    />
-                    <div className="flex flex-col sm:flex-row gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Preview Image
+                </label>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border border-dashed border-white/20 bg-white/5 p-4">
+                  {formData.preview_image_url ? (
+                    <>
+                      <img
+                        src={formData.preview_image_url || ''}
+                        alt="Snippet preview"
+                        className="h-32 w-full sm:w-48 object-cover rounded-lg border border-white/10 bg-slate-900/50"
+                      />
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowImageModal(true)}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                          Change Image
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          disabled={removingImage}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-red-300 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {removingImage ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                          Remove
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+                      <p className="text-sm text-slate-400 flex-1">
+                        Upload an optional screenshot to showcase this snippet or widget.
+                      </p>
                       <button
                         type="button"
                         onClick={() => setShowImageModal(true)}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                       >
                         <ImageIcon className="h-4 w-4" />
-                        Change Image
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        disabled={removingImage}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-red-300 rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        {removingImage ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                        Remove
+                        Upload Image
                       </button>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
-                    <p className="text-sm text-slate-400 flex-1">
-                      Upload an optional screenshot to showcase this snippet or widget.
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Recommended size 800×450. Stored securely in Supabase Storage.
+                </p>
+              </div>
+
+              {renderArtifactFields()}
+
+              {formData.artifact_type === 'service_portal_widget' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Data Table
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.data_table || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, data_table: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="sp_instance, sp_instance_link, etc."
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Service Portal widget table name (e.g., sp_instance_link).
                     </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Field List
+                    </label>
+                    <textarea
+                      value={formData.field_list || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, field_list: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Type, HREF / URL, Catalog category, Catalog item, ..."
+                      rows={3}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Comma-separated list of instance fields exposed by the widget.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      HTML Template *
+                    </label>
+                    <textarea
+                      value={formData.html || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, html: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="<div>Widget HTML template</div>"
+                      rows={6}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      CSS
+                    </label>
+                    <textarea
+                      value={formData.css || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, css: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder=".my-widget { color: white; }"
+                      rows={6}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Client Script
+                    </label>
+                    <textarea
+                      value={formData.client_script || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, client_script: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="function($scope) { /* Client-side logic */ }"
+                      rows={6}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Server Script
+                    </label>
+                    <textarea
+                      value={formData.server_script || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, server_script: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="(function() { /* Server-side logic */ })();"
+                      rows={6}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Option Schema
+                      {optionSchemaError && (
+                        <span className="text-red-500 ml-2 text-xs">{optionSchemaError}</span>
+                      )}
+                    </label>
+                    <textarea
+                      value={typeof formData.option_schema === 'object' ? JSON.stringify(formData.option_schema, null, 2) : ''}
+                      onChange={(e) => handleOptionSchemaChange(e.target.value)}
+                      className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border ${optionSchemaError ? 'border-red-500' : 'border-white/20'
+                        } rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      placeholder='{"fields":[{"name":"title","label":"Title","type":"string"}]}'
+                      rows={6}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      JSON object defining widget options. Must be valid JSON.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Demo Data
+                      {demoDataError && (
+                        <span className="text-red-500 ml-2 text-xs">{demoDataError}</span>
+                      )}
+                    </label>
+                    <textarea
+                      value={typeof formData.demo_data === 'object' ? JSON.stringify(formData.demo_data, null, 2) : ''}
+                      onChange={(e) => handleDemoDataChange(e.target.value)}
+                      className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border ${demoDataError ? 'border-red-500' : 'border-white/20'
+                        } rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      placeholder='{"title":"Example Title"}'
+                      rows={6}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Sample data for widget preview. Must be valid JSON.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {formData.artifact_type !== 'script_include' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Tags
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formData.tags.map(tag => (
+                      <span
+                        key={tag}
+                        className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-md text-sm flex items-center"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="ml-1 text-blue-300 hover:text-white"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex">
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                      className="flex-1 px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-l-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Add a tag"
+                    />
                     <button
                       type="button"
-                      onClick={() => setShowImageModal(true)}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      onClick={handleAddTag}
+                      className="px-4 py-3 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors"
                     >
-                      <ImageIcon className="h-4 w-4" />
-                      Upload Image
+                      Add
                     </button>
                   </div>
-                )}
-              </div>
-              <p className="text-xs text-slate-500 mt-2">
-                Recommended size 800×450. Stored securely in Supabase Storage.
-              </p>
-            </div>
-
-            {renderArtifactFields()}
-
-            {formData.artifact_type === 'service_portal_widget' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Data Table
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.data_table || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, data_table: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="sp_instance, sp_instance_link, etc."
-                  />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Service Portal widget table name (e.g., sp_instance_link).
-                  </p>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Field List
-                  </label>
-                  <textarea
-                    value={formData.field_list || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, field_list: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Type, HREF / URL, Catalog category, Catalog item, ..."
-                    rows={3}
-                  />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Comma-separated list of instance fields exposed by the widget.
-                  </p>
+              {error && (
+                <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300">
+                  {error}
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    HTML Template *
-                  </label>
-                  <textarea
-                value={formData.html || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, html: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="<div>Widget HTML template</div>"
-                rows={6}
-              />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    CSS
-                  </label>
-                  <textarea
-                    value={formData.css || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, css: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder=".my-widget { color: white; }"
-                    rows={6}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Client Script
-                  </label>
-                  <textarea
-                    value={formData.client_script || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, client_script: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="function($scope) { /* Client-side logic */ }"
-                    rows={6}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Server Script
-                  </label>
-                  <textarea
-                    value={formData.server_script || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, server_script: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="(function() { /* Server-side logic */ })();"
-                    rows={6}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Option Schema
-                    {optionSchemaError && (
-                      <span className="text-red-500 ml-2 text-xs">{optionSchemaError}</span>
-                    )}
-                  </label>
-                  <textarea
-                    value={typeof formData.option_schema === 'object' ? JSON.stringify(formData.option_schema, null, 2) : ''}
-                    onChange={(e) => handleOptionSchemaChange(e.target.value)}
-                    className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border ${
-                      optionSchemaError ? 'border-red-500' : 'border-white/20'
-                    } rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    placeholder='{"fields":[{"name":"title","label":"Title","type":"string"}]}'
-                    rows={6}
-                  />
-                  <p className="text-xs text-slate-400 mt-1">
-                    JSON object defining widget options. Must be valid JSON.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Demo Data
-                    {demoDataError && (
-                      <span className="text-red-500 ml-2 text-xs">{demoDataError}</span>
-                    )}
-                  </label>
-                  <textarea
-                    value={typeof formData.demo_data === 'object' ? JSON.stringify(formData.demo_data, null, 2) : ''}
-                    onChange={(e) => handleDemoDataChange(e.target.value)}
-                    className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border ${
-                      demoDataError ? 'border-red-500' : 'border-white/20'
-                    } rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    placeholder='{"title":"Example Title"}'
-                    rows={6}
-                  />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Sample data for widget preview. Must be valid JSON.
-                  </p>
-                </div>
-              </>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Tags
-              </label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-md text-sm flex items-center"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 text-blue-300 hover:text-white"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex">
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  className="flex-1 px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-l-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Add a tag"
-                />
+              <div className="flex justify-end gap-4 pt-4">
                 <button
                   type="button"
-                  onClick={handleAddTag}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors"
+                  onClick={onClose}
+                  className="px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
                 >
-                  Add
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Create Snippet
                 </button>
               </div>
-            </div>
-
-            {error && (
-              <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300">
-                {error}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-4 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                Create Snippet
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
       </div>
       {showImageModal && (
         <ImageUploadModal
