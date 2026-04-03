@@ -657,7 +657,11 @@ export function SnippetModal({ snippet, onClose, user, onUpdateSnippet, onDelete
         updates.preview_image_path = normalizedPreviewPath || null;
       }
 
-      if (snippet.artifact_type === 'business_rule' || snippet.artifact_type === 'client_script') {
+      if (
+        snippet.artifact_type === 'business_rule' ||
+        snippet.artifact_type === 'client_script' ||
+        snippet.artifact_type === 'catalog_client_script'
+      ) {
         updates.when = editData.when;
       }
 

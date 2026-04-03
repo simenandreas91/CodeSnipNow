@@ -49,6 +49,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     view: '',
     ui_type_code: 0,
     type: '',
+    ui_type: 'All',
     tags: [],
     html: '',
     css: '',
@@ -127,6 +128,34 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
       artifact_type: value,
       ...(value === 'specialized_areas' ? {} : { type: '' })
     }));
+  };
+
+  const validateSubmission = (data: CreateSnippetData): string | null => {
+    if (!data.name.trim()) return 'Name is required.';
+    if (!data.description.trim()) return 'Description is required.';
+
+    if (data.artifact_type === 'service_portal_widget') {
+      if (!data.html?.trim()) return 'HTML Template is required for Service Portal widgets.';
+      return null;
+    }
+
+    if (data.artifact_type === 'specialized_areas' && !data.type?.trim()) {
+      return 'Specialized Area Type is required.';
+    }
+
+    if (['business_rule', 'client_script', 'ui_action', 'transform_map'].includes(data.artifact_type) && !data.collection?.trim()) {
+      return 'Table is required.';
+    }
+
+    if (data.artifact_type === 'catalog_client_script' && !data.collection?.trim()) {
+      return 'Applies To is required.';
+    }
+
+    if (!data.script?.trim()) {
+      return 'Script is required.';
+    }
+
+    return null;
   };
 
   const renderArtifactFields = (): React.ReactNode => {
@@ -668,6 +697,89 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
           </>
         );
       }
+      case 'catalog_client_script':
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Application
+                </label>
+                <input
+                  type="text"
+                  value={formData.application || 'Global'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, application: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center md:justify-end">
+                <label className="inline-flex items-center gap-2 text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.active !== false}
+                    onChange={handleCheckboxChange('active')}
+                    className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                  />
+                  Active
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Applies To *
+                </label>
+                <input
+                  type="text"
+                  value={formData.collection || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, collection: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="A Catalog Item"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  UI Type
+                </label>
+                <select
+                  value={formData.ui_type || 'All'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, ui_type: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="All" className="bg-slate-800">All</option>
+                  <option value="Desktop" className="bg-slate-800">Desktop</option>
+                  <option value="Mobile" className="bg-slate-800">Mobile</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Type *
+              </label>
+              <select
+                value={formData.when || 'onLoad'}
+                onChange={(e) => setFormData(prev => ({ ...prev, when: e.target.value }))}
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="onLoad" className="bg-slate-800">onLoad</option>
+                <option value="onChange" className="bg-slate-800">onChange</option>
+                <option value="onSubmit" className="bg-slate-800">onSubmit</option>
+                <option value="onCellEdit" className="bg-slate-800">onCellEdit</option>
+              </select>
+            </div>
+
+            {renderScriptTextarea('Script *', 'function onLoad() {\n  // Catalog client script\n}')}
+            {renderScriptTextarea(
+              'Script Include (optional)',
+              'var CatalogHelper = Class.create({\n  initialize: function() {},\n});',
+              false,
+              12,
+              'script_include'
+            )}
+          </>
+        );
       case 'specialized_areas':
         return (
           <>
@@ -1085,7 +1197,19 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
         api_name: apiName,
         application: submissionData.application || 'Global',
         caller_access: submissionData.caller_access?.trim() || '',
-        client: !!submissionData.client,
+        client_callable: !!submissionData.client_callable,
+      };
+    }
+
+    if (submissionData.artifact_type === 'catalog_client_script') {
+      submissionData = {
+        ...submissionData,
+        collection: submissionData.collection?.trim() || '',
+        when: submissionData.when?.trim() || 'onLoad',
+        ui_type: submissionData.ui_type?.trim() || 'All',
+        application: submissionData.application || 'Global',
+        script_include: submissionData.script_include?.trim() || '',
+        active: submissionData.active !== false,
       };
     }
 
@@ -1131,6 +1255,12 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
         ...submissionData,
         type: trimmedType || ''
       };
+    }
+
+    const validationError = validateSubmission(submissionData);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
 
     setLoading(true);

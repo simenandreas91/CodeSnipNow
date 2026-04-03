@@ -40,13 +40,33 @@ const TABLE_SELECT_COLUMNS: Record<string, string> = {
 const TABLE_SEARCH_COLUMNS: Record<string, string[]> = {
   business_rules: ['title', 'description', 'code', 'collection', 'condition', 'filter_condition'],
   client_scripts: ['title', 'description', 'client_script', 'script_include', 'event', 'table'],
-  catalog_client_scripts: ['title', 'description', 'client_script', 'script_include', 'event', 'table'],
+  catalog_client_scripts: ['title', 'description', 'client_script', 'script_include', 'applies_to', 'type'],
   ui_actions: ['title', 'description', 'client_script_v2', 'onclick', 'table_name'],
   transform_maps: ['title', 'description', 'source_table', 'target_table'],
   service_portal_widgets: ['title', 'description', 'html', 'client_script', 'server_script', 'data_table']
 };
 
 const PUBLIC_FILTER_EXCEPTIONS = ['mail_scripts', 'inbound_actions', 'core_servicenow_apis'];
+const ARTIFACT_TYPES_WITH_TAGS = new Set([
+  'business_rule',
+  'client_script',
+  'catalog_client_script',
+  'ui_action',
+  'scheduled_job',
+  'background_script'
+]);
+const ARTIFACT_TYPES_WITH_PREVIEW_IMAGES = new Set([
+  'business_rule',
+  'client_script',
+  'script_include',
+  'ui_action',
+  'scheduled_job',
+  'transform_map',
+  'background_script',
+  'service_portal_widget',
+  'mail_script',
+  'inbound_action'
+]);
 
 interface SnippetCacheEntry {
   snippets: Snippet[];
@@ -197,7 +217,8 @@ export function useSnippets() {
         artifactType === 'service_portal_widget'
           ? (item.server_script || '')
           : (item.client_script ?? item.code ?? '');
-      const resolvedCollection = item.collection ?? item.table ?? item.table_name ?? '';
+      const resolvedCollection =
+        item.collection ?? item.table ?? item.table_name ?? item.applies_to ?? item.source_table ?? '';
       const resolvedWhen = item.when_to_run ?? item.event ?? item.type ?? item.script_type ?? '';
       const resolvedUiTypeCode =
         typeof item.ui_type_code === 'number'
@@ -547,10 +568,13 @@ export function useSnippets() {
         const baseData: Record<string, any> = {
           title: data.name,
           description: data.description,
-          ...(data.artifact_type !== 'script_include' ? { tags: data.tags } : {}),
           is_public: true,
           author_id: userId
         };
+
+        if (ARTIFACT_TYPES_WITH_TAGS.has(data.artifact_type)) {
+          baseData.tags = data.tags;
+        }
 
         if (data.artifact_type === 'client_script' || data.artifact_type === 'catalog_client_script') {
           baseData.client_script = data.client_script ?? data.script ?? '';
@@ -605,10 +629,11 @@ export function useSnippets() {
             break;
           case 'catalog_client_script':
             specificData = {
-              table: data.collection,
-              event: data.when || 'onLoad',
+              applies_to: data.collection?.trim() || '',
+              type: data.when || 'onLoad',
               active: data.active,
-              ...(resolvedUiType ? { ui_type: resolvedUiType } : {})
+              ui_type: data.ui_type?.trim() || resolvedUiType || 'All',
+              sys_scope: data.application?.trim() || 'Global'
             };
             break;
           case 'script_include':
@@ -678,10 +703,10 @@ export function useSnippets() {
         }
       }
 
-      if (data.preview_image_path) {
+      if (ARTIFACT_TYPES_WITH_PREVIEW_IMAGES.has(data.artifact_type) && data.preview_image_path) {
         (insertData as any).preview_image_path = data.preview_image_path;
       }
-      if (data.preview_image_url) {
+      if (ARTIFACT_TYPES_WITH_PREVIEW_IMAGES.has(data.artifact_type) && data.preview_image_url) {
         (insertData as any).preview_image_url = data.preview_image_url;
       }
 
@@ -767,15 +792,14 @@ export function useSnippets() {
       }
       if (
         updates.tags &&
-        updates.artifact_type !== 'service_portal_widget' &&
-        updates.artifact_type !== 'specialized_areas'
+        ARTIFACT_TYPES_WITH_TAGS.has(updates.artifact_type)
       ) {
         updateData.tags = updates.tags;
       }
-      if (updates.preview_image_path !== undefined) {
+      if (updates.preview_image_path !== undefined && ARTIFACT_TYPES_WITH_PREVIEW_IMAGES.has(updates.artifact_type)) {
         updateData.preview_image_path = updates.preview_image_path;
       }
-      if (updates.preview_image_url !== undefined) {
+      if (updates.preview_image_url !== undefined && ARTIFACT_TYPES_WITH_PREVIEW_IMAGES.has(updates.artifact_type)) {
         updateData.preview_image_url = updates.preview_image_url;
       }
 
@@ -797,10 +821,14 @@ export function useSnippets() {
           updateData.client_script = updates.client_script;
         }
         if (updates.collection) {
-          if (['business_rule', 'transform_map'].includes(updates.artifact_type)) {
+          if (updates.artifact_type === 'business_rule') {
             updateData.collection = updates.collection;
-          } else if (['client_script', 'catalog_client_script'].includes(updates.artifact_type)) {
+          } else if (updates.artifact_type === 'transform_map') {
+            updateData.source_table = updates.collection;
+          } else if (updates.artifact_type === 'client_script') {
             updateData.table = updates.collection;
+          } else if (updates.artifact_type === 'catalog_client_script') {
+            updateData.applies_to = updates.collection;
           } else {
             updateData.table_name = updates.collection;
           }
@@ -809,8 +837,10 @@ export function useSnippets() {
         if (updates.when) {
           if (updates.artifact_type === 'business_rule') {
             updateData.when_to_run = updates.when;
-          } else if (updates.artifact_type === 'client_script' || updates.artifact_type === 'catalog_client_script') {
+          } else if (updates.artifact_type === 'client_script') {
             updateData.event = updates.when;
+          } else if (updates.artifact_type === 'catalog_client_script') {
+            updateData.type = updates.when;
           }
         }
 
