@@ -82,6 +82,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
     comments: '',
     data_table: '',
     field_list: '',
+    link: '',
     client: false,
     newlines_to_html: false,
     preview_image_path: null,
@@ -940,6 +941,7 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
             css: extractValue('css'),
             server_script: extractValue('script'),
             client_script: extractValue('client_script'),
+            link: extractValue('link'),
             option_schema: optionSchema,
             demo_data: demoData,
           });
@@ -1397,6 +1399,19 @@ export function CreateSnippetModal({ onClose, onCreateSnippet, user }: CreateSni
                       onChange={(e) => setFormData(prev => ({ ...prev, client_script: e.target.value }))}
                       className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="function($scope) { /* Client-side logic */ }"
+                      rows={6}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Link Function
+                    </label>
+                    <textarea
+                      value={formData.link || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, link: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="function link(scope, element) { /* DOM logic */ }"
                       rows={6}
                     />
                   </div>
